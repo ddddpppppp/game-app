@@ -58,6 +58,43 @@ export interface ApiResponse<T = any> {
   message?: string
 }
 
+// 交易记录接口
+export interface Transaction {
+  id: number
+  type: string
+  amount: number
+  gift: number
+  fee: number
+  status: string
+  created_at: string
+}
+
+// 充值响应接口
+export interface DepositResponse {
+  transaction_id: number
+  order_no: string
+  method: string
+  amount: number
+  expired_at: string
+  payment_url?: string
+  deposit_address?: string
+  usdt_amount?: number
+}
+
+// 系统设置接口
+export interface SystemSetting {
+  name: string
+  title: string
+  description: string
+  config: {
+    min_amount: number
+    max_amount: number
+    usdt_gift_rate: number
+    cashapp_gift_rate: number
+    [key: string]: any
+  }
+}
+
 // 认证服务
 class AuthService {
   // 用户登录
@@ -99,6 +136,56 @@ class AuthService {
   // 修改密码
   async changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
     const response = await api.post('/api/user/changePassword', data)
+    return response.data
+  }
+
+  // 获取交易记录
+  async getTransactionHistory(params?: {
+    page?: number
+    limit?: number
+    type?: string
+    status?: string
+  }): Promise<{
+    transactions: Transaction[]
+    total: number
+    current_page: number
+    last_page: number
+  }> {
+    const response = await api.get('/api/user/getTransactionHistory', { params })
+    return response.data
+  }
+
+  // 创建充值订单
+  async createDeposit(amount: number, method: 'cashapp' | 'usdt'): Promise<DepositResponse> {
+    const response = await api.post('/api/user/createDeposit', {
+      amount,
+      method
+    })
+    return response.data
+  }
+
+  // 获取充值订单状态
+  async getDepositStatus(orderNo: string): Promise<{
+    order_no: string
+    status: string
+    status_text: string
+    amount: number
+    actual_amount: number
+    created_at: string
+    expired_at: string
+    is_expired: boolean
+  }> {
+    const response = await api.get('/api/user/getDepositStatus', {
+      params: { order_no: orderNo }
+    })
+    return response.data
+  }
+
+  // 获取系统设置
+  async getSystemSettings(type: string): Promise<SystemSetting> {
+    const response = await api.get('/api/api/getSystemSettings', {
+      params: { type }
+    })
     return response.data
   }
 

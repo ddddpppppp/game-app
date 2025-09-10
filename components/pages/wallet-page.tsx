@@ -1,6 +1,6 @@
 "use client"
 import { BalanceCard } from "@/components/balance-card"
-import { TransactionHistory } from "@/components/transaction-history"
+import { BalanceHistory } from "@/components/balance-history"
 
 export function WalletPage() {
   return (
@@ -17,7 +17,7 @@ export function WalletPage() {
         <BalanceCard />
 
         {/* Transaction History */}
-        <TransactionHistory />
+        <BalanceHistory />
       </div>
     </div>
   )

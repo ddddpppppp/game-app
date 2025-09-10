@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Smartphone, Coins } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { TransactionHistory } from "@/components/transaction-history"
+import { UsdtDepositDialog } from "@/components/usdt-deposit-dialog"
+import { authService, type SystemSetting } from "@/lib/services/auth"
 
 interface DepositPageProps {
   onBack: () => void
@@ -16,32 +19,63 @@ interface DepositPageProps {
 export function DepositPage({ onBack }: DepositPageProps) {
   const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | null>(null)
   const [amount, setAmount] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [rechargeConfig, setRechargeConfig] = useState<SystemSetting | null>(null)
+  const [usdtDialogOpen, setUsdtDialogOpen] = useState(false)
+  const [usdtDepositInfo, setUsdtDepositInfo] = useState<{
+    depositAddress: string
+    usdtAmount: number
+    orderNo: string
+    expiredAt: string
+  } | null>(null)
+  const [refreshTransactions, setRefreshTransactions] = useState(0)
   const { toast } = useToast()
 
-  const paymentMethods = [
-    {
-      id: "cashapp" as const,
-      name: "CashApp",
-      icon: Smartphone,
-      description: "Instant deposit via CashApp",
-      minAmount: 10,
-      maxAmount: 5000,
-      fee: "Free",
-      processingTime: "Instant",
-    },
-    {
-      id: "usdt" as const,
-      name: "USDT (Crypto)",
-      icon: Coins,
-      description: "Deposit using USDT cryptocurrency",
-      minAmount: 20,
-      maxAmount: 10000,
-      fee: "Network fee applies",
-      processingTime: "5-15 minutes",
-    },
-  ]
+  useEffect(() => {
+    loadRechargeConfig()
+  }, [])
 
-  const handleDeposit = () => {
+  const loadRechargeConfig = async () => {
+    try {
+      const config = await authService.getSystemSettings('recharge_setting')
+      setRechargeConfig(config)
+    } catch (error) {
+      console.error('Failed to load recharge config:', error)
+    }
+  }
+
+  const getPaymentMethods = () => {
+    if (!rechargeConfig) return []
+
+    const { min_amount, max_amount, cashapp_gift_rate, usdt_gift_rate } = rechargeConfig.config
+
+    return [
+      {
+        id: "cashapp" as const,
+        name: "CashApp",
+        icon: Smartphone,
+        description: "Instant deposit via CashApp",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        giftRate: cashapp_gift_rate,
+        processingTime: "Instant",
+      },
+      {
+        id: "usdt" as const,
+        name: "USDT (Crypto)",
+        icon: Coins,
+        description: "Deposit using USDT cryptocurrency",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        giftRate: usdt_gift_rate,
+        processingTime: "5-15 minutes",
+      },
+    ]
+  }
+
+  const paymentMethods = getPaymentMethods()
+
+  const handleDeposit = async () => {
     if (!selectedMethod || !amount) {
       toast({
         title: "Error",
@@ -63,15 +97,66 @@ export function DepositPage({ onBack }: DepositPageProps) {
       return
     }
 
-    toast({
-      title: "Deposit Initiated",
-      description: `Your $${amount} deposit via ${method.name} is being processed.`,
-    })
+    try {
+      setLoading(true)
+      const result = await authService.createDeposit(numAmount, selectedMethod)
 
-    // Simulate processing
-    setTimeout(() => {
-      onBack()
-    }, 2000)
+      if (selectedMethod === "cashapp" && result.payment_url) {
+        // CashApp: 重定向到支付页面
+        window.open(result.payment_url, '_blank')
+        toast({
+          title: "Redirecting to Payment",
+          description: "Please complete the payment in the new window",
+        })
+      } else if (selectedMethod === "usdt") {
+        // USDT: 显示弹窗
+        setUsdtDepositInfo({
+          depositAddress: result.deposit_address!,
+          usdtAmount: result.usdt_amount!,
+          orderNo: result.order_no,
+          expiredAt: result.expired_at,
+        })
+        setUsdtDialogOpen(true)
+      }
+
+      // 刷新交易记录
+      setRefreshTransactions(prev => prev + 1)
+
+      // 清空表单
+      setAmount("")
+      setSelectedMethod(null)
+
+    } catch (error: any) {
+      toast({
+        title: "Deposit Failed",
+        description: error.message || "Failed to create deposit order",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getGiftText = (giftRate: number) => {
+    if (giftRate > 0) {
+      return `${(giftRate).toFixed(0)}% Bonus`
+    }
+    return "No Bonus"
+  }
+
+  const calculateGift = (amount: number, giftRate: number) => {
+    if (giftRate > 0) {
+      return amount * giftRate / 100
+    }
+    return 0
+  }
+
+  if (!rechargeConfig) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div>Loading...</div>
+      </div>
+    )
   }
 
   return (
@@ -92,6 +177,8 @@ export function DepositPage({ onBack }: DepositPageProps) {
           <h2 className="text-lg font-semibold">Select Payment Method</h2>
           {paymentMethods.map((method) => {
             const Icon = method.icon
+            const giftAmount = amount ? calculateGift(Number.parseFloat(amount), method.giftRate) : 0
+            
             return (
               <Card
                 key={method.id}
@@ -108,8 +195,11 @@ export function DepositPage({ onBack }: DepositPageProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold">{method.name}</h3>
-                        <Badge variant="outline" className="text-xs">
-                          {method.fee}
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${method.giftRate > 0 ? 'bg-green-100 text-green-800' : ''}`}
+                        >
+                          {getGiftText(method.giftRate)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">{method.description}</p>
@@ -118,6 +208,11 @@ export function DepositPage({ onBack }: DepositPageProps) {
                         <span>Max: ${method.maxAmount}</span>
                         <span>{method.processingTime}</span>
                       </div>
+                      {selectedMethod === method.id && giftAmount > 0 && (
+                        <div className="mt-2 text-sm text-green-600 font-medium">
+                          You will receive ${giftAmount.toFixed(2)} bonus!
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -161,13 +256,32 @@ export function DepositPage({ onBack }: DepositPageProps) {
                 ))}
               </div>
 
-              <Button onClick={handleDeposit} className="w-full" size="lg">
-                Deposit ${amount || "0.00"}
+              <Button 
+                onClick={handleDeposit} 
+                className="w-full" 
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? "Processing..." : `Deposit $${amount || "0.00"}`}
               </Button>
             </CardContent>
           </Card>
         )}
+
+        <TransactionHistory refreshKey={refreshTransactions} />
       </div>
+
+      {/* USDT Deposit Dialog */}
+      {usdtDepositInfo && (
+        <UsdtDepositDialog
+          open={usdtDialogOpen}
+          onOpenChange={setUsdtDialogOpen}
+          depositAddress={usdtDepositInfo.depositAddress}
+          usdtAmount={usdtDepositInfo.usdtAmount}
+          orderNo={usdtDepositInfo.orderNo}
+          expiredAt={usdtDepositInfo.expiredAt}
+        />
+      )}
     </div>
   )
 }

@@ -1,145 +1,134 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUpRight, ArrowDownLeft, Plus, Minus } from "lucide-react"
+import { authService, type Transaction } from "@/lib/services/auth"
+import { useToast } from "@/hooks/use-toast"
 
-interface Transaction {
-  id: string
-  type: "deposit" | "withdraw" | "win" | "bet"
-  amount: number
-  description: string
-  timestamp: string
-  status: "completed" | "pending" | "failed"
-  method?: string
+interface TransactionHistoryProps {
+  type?: string // deposit, withdraw, all
+  refreshKey?: number // 用于外部触发刷新
 }
 
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    type: "deposit",
-    amount: 500.0,
-    description: "Deposit via CashApp",
-    timestamp: "2024-01-15 14:30",
-    status: "completed",
-    method: "CashApp",
-  },
-  {
-    id: "2",
-    type: "win",
-    amount: 125.5,
-    description: "Texas Hold'em Poker - Win",
-    timestamp: "2024-01-15 13:45",
-    status: "completed",
-  },
-  {
-    id: "3",
-    type: "bet",
-    amount: -50.0,
-    description: "Lightning Slots - Bet",
-    timestamp: "2024-01-15 13:20",
-    status: "completed",
-  },
-  {
-    id: "4",
-    type: "withdraw",
-    amount: -200.0,
-    description: "Withdraw to USDT Wallet",
-    timestamp: "2024-01-14 16:15",
-    status: "pending",
-    method: "USDT",
-  },
-  {
-    id: "5",
-    type: "deposit",
-    amount: 1000.0,
-    description: "Deposit via USDT",
-    timestamp: "2024-01-14 10:30",
-    status: "completed",
-    method: "USDT",
-  },
-  {
-    id: "6",
-    type: "win",
-    amount: 75.25,
-    description: "Blackjack Pro - Win",
-    timestamp: "2024-01-13 20:45",
-    status: "completed",
-  },
-]
+export function TransactionHistory({ type = "deposit", refreshKey }: TransactionHistoryProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-export function TransactionHistory() {
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case "deposit":
-        return <ArrowDownLeft className="h-4 w-4 text-green-500" />
-      case "withdraw":
-        return <ArrowUpRight className="h-4 w-4 text-red-500" />
-      case "win":
-        return <Plus className="h-4 w-4 text-green-500" />
-      case "bet":
-        return <Minus className="h-4 w-4 text-red-500" />
-      default:
-        return null
+  useEffect(() => {
+    loadTransactions()
+  }, [type, refreshKey])
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true)
+      const response = await authService.getTransactionHistory({
+        type: type === "all" ? undefined : type,
+        limit: 10
+      })
+      setTransactions(response.transactions)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load transaction history",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            Completed
-          </Badge>
-        )
+        return "bg-green-100 text-green-800"
       case "pending":
-        return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-            Pending
-          </Badge>
-        )
+        return "bg-yellow-100 text-yellow-800"
       case "failed":
-        return <Badge variant="destructive">Failed</Badge>
+        return "bg-red-100 text-red-800"
+      case "expired":
+        return "bg-gray-100 text-gray-800"
       default:
-        return null
+        return "bg-gray-100 text-gray-800"
     }
   }
 
-  const formatAmount = (amount: number) => {
-    const isPositive = amount > 0
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Completed"
+      case "pending":
+        return "Pending"
+      case "failed":
+        return "Failed"
+      case "expired":
+        return "Expired"
+      default:
+        return status
+    }
+  }
+
+  if (loading) {
     return (
-      <span className={isPositive ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-        {isPositive ? "+" : ""}${Math.abs(amount).toFixed(2)}
-      </span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">Loading...</div>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Transaction History</CardTitle>
+        <CardTitle>Recent Transactions</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {mockTransactions.map((transaction) => (
-          <div key={transaction.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-muted rounded-full">{getTransactionIcon(transaction.type)}</div>
-              <div>
-                <p className="font-medium text-sm">{transaction.description}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-xs text-muted-foreground">{transaction.timestamp}</p>
-                  {transaction.method && (
-                    <Badge variant="outline" className="text-xs px-1.5 py-0.5">
-                      {transaction.method}
+      <CardContent>
+        {transactions.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground">
+            No transactions found
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="flex items-center justify-between p-3 border border-border rounded-lg"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium capitalize">
+                      {transaction.type}
+                    </span>
+                    <Badge 
+                      variant="secondary" 
+                      className={getStatusColor(transaction.status)}
+                    >
+                      {getStatusText(transaction.status)}
                     </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {transaction.created_at}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">
+                    ${transaction.amount.toFixed(2)}
+                  </div>
+                  {transaction.gift > 0 && (
+                    <div className="text-xs text-green-600">
+                      +${transaction.gift.toFixed(2)} gift
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-            <div className="text-right">
-              {formatAmount(transaction.amount)}
-              <div className="mt-1">{getStatusBadge(transaction.status)}</div>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </CardContent>
     </Card>
   )

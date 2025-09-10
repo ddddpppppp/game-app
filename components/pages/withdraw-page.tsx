@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Smartphone, Coins, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { TransactionHistory } from "@/components/transaction-history"
 
 interface WithdrawPageProps {
   onBack: () => void
@@ -210,6 +211,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
             </CardContent>
           </Card>
         )}
+        <TransactionHistory />
       </div>
     </div>
   )
