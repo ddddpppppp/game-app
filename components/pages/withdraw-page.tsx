@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Smartphone, Coins, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TransactionHistory } from "@/components/transaction-history"
+import { authService, type SystemSetting } from "@/lib/services/auth"
+import { useProfile } from "@/hooks/use-profile"
 
 interface WithdrawPageProps {
   onBack: () => void
@@ -16,36 +18,71 @@ interface WithdrawPageProps {
 
 export function WithdrawPage({ onBack }: WithdrawPageProps) {
   const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | null>(null)
+  const [userBalance, setUserBalance] = useState(0)
   const [amount, setAmount] = useState("")
   const [address, setAddress] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [withdrawConfig, setWithdrawConfig] = useState<SystemSetting | null>(null)
+  const [refreshTransactions, setRefreshTransactions] = useState(0)
   const { toast } = useToast()
+  const { user, refreshUserInfo } = useProfile()
 
-  const availableBalance = 1234.56
+  useEffect(() => {
+    loadWithdrawConfig()
+    setUserBalance(user?.balance || 0)
+  }, [user])
 
-  const withdrawMethods = [
-    {
-      id: "cashapp" as const,
-      name: "CashApp",
-      icon: Smartphone,
-      description: "Withdraw to your CashApp account",
-      minAmount: 20,
-      maxAmount: 2000,
-      fee: "$2.50",
-      processingTime: "1-3 business days",
-    },
-    {
-      id: "usdt" as const,
-      name: "USDT (Crypto)",
-      icon: Coins,
-      description: "Withdraw to your USDT wallet",
-      minAmount: 50,
-      maxAmount: 5000,
-      fee: "Network fee (~$5)",
-      processingTime: "10-30 minutes",
-    },
-  ]
+  const loadWithdrawConfig = async () => {
+    try {
+      const config = await authService.getSystemSettings('withdraw_setting')
+      setWithdrawConfig(config)
+    } catch (error) {
+      console.error('Failed to load withdraw config:', error)
+    }
+  }
 
-  const handleWithdraw = () => {
+  const getWithdrawMethods = () => {
+    if (!withdrawConfig) return []
+
+    const { min_amount, max_amount, fee_rate } = withdrawConfig.config
+    const feePercent = (fee_rate).toFixed(1)
+
+    return [
+      {
+        id: "cashapp" as const,
+        name: "CashApp",
+        icon: Smartphone,
+        description: "Withdraw to your CashApp account",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        fee: `${feePercent}%`,
+        processingTime: "1-3 business days",
+      },
+      {
+        id: "usdt" as const,
+        name: "USDT (Crypto)",
+        icon: Coins,
+        description: "Withdraw to your USDT wallet",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        fee: `${feePercent}%`,
+        processingTime: "10-30 minutes",
+      },
+    ]
+  }
+
+  const withdrawMethods = getWithdrawMethods()
+
+  const calculateFee = (amount: number) => {
+    if (!withdrawConfig || !amount) return 0
+    return amount * (withdrawConfig.config.fee_rate) / 100
+  }
+
+  const calculateActualAmount = (amount: number) => {
+    return amount - calculateFee(amount)
+  }
+
+  const handleWithdraw = async () => {
     if (!selectedMethod || !amount) {
       toast({
         title: "Error",
@@ -67,7 +104,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       return
     }
 
-    if (numAmount > availableBalance) {
+    if (numAmount > userBalance) {
       toast({
         title: "Insufficient Balance",
         description: "You don't have enough balance for this withdrawal",
@@ -85,15 +122,41 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       return
     }
 
-    toast({
-      title: "Withdrawal Requested",
-      description: `Your $${amount} withdrawal via ${method.name} is being processed.`,
-    })
+    try {
+      setLoading(true)
+      const result = await authService.createWithdraw(numAmount, selectedMethod, address)
 
-    // Simulate processing
-    setTimeout(() => {
-      onBack()
-    }, 2000)
+      toast({
+        title: "Withdrawal Requested",
+        description: `Your withdrawal request has been submitted successfully`,
+      })
+
+      // 刷新交易记录和用户信息
+      setRefreshTransactions(prev => prev + 1)
+      setUserBalance((await refreshUserInfo()).balance || 0)
+
+      // 清空表单
+      setAmount("")
+      setAddress("")
+      setSelectedMethod(null)
+
+    } catch (error: any) {
+      toast({
+        title: "Withdrawal Failed",
+        description: error.message || "Failed to create withdrawal request",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!withdrawConfig) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div>Loading...</div>
+      </div>
+    )
   }
 
   return (
@@ -114,7 +177,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Available Balance</span>
-              <span className="text-lg font-semibold">${availableBalance.toFixed(2)}</span>
+              <span className="text-lg font-semibold">${userBalance}</span>
             </div>
           </CardContent>
         </Card>
@@ -179,6 +242,24 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                 />
               </div>
 
+              {/* Fee and Actual Amount Display */}
+              {amount && Number.parseFloat(amount) > 0 && (
+                <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Withdrawal Amount:</span>
+                    <span>${Number.parseFloat(amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Fee ({(withdrawConfig.config.fee_rate).toFixed(1)}%):</span>
+                    <span>-${calculateFee(Number.parseFloat(amount)).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                    <span>You will receive:</span>
+                    <span>${calculateActualAmount(Number.parseFloat(amount)).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
               {selectedMethod === "usdt" && (
                 <div className="space-y-2">
                   <Label htmlFor="address" className="mb-2 block">
@@ -193,6 +274,20 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                 </div>
               )}
 
+              {selectedMethod === "cashapp" && (
+                <div className="space-y-2">
+                  <Label htmlFor="account" className="mb-2 block">
+                    CashApp CashTag
+                  </Label>
+                  <Input
+                    id="account"
+                    placeholder="Enter your CashApp CashTag"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+              )}
+
               {/* Warning */}
               <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
@@ -200,18 +295,24 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                   <p className="font-medium">Important Notice</p>
                   <p>
                     Withdrawals are processed within the stated timeframe. Please ensure your account details are
-                    correct.
+                    correct. Daily limit: {withdrawConfig.config.daily_limit} withdrawals per day.
                   </p>
                 </div>
               </div>
 
-              <Button onClick={handleWithdraw} className="w-full" size="lg">
-                Withdraw ${amount || "0.00"}
+              <Button 
+                onClick={handleWithdraw} 
+                className="w-full" 
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? "Processing..." : `Withdraw $${amount || "0.00"}`}
               </Button>
             </CardContent>
           </Card>
         )}
-        <TransactionHistory />
+        
+        <TransactionHistory type="withdraw" refreshKey={refreshTransactions} />
       </div>
     </div>
   )

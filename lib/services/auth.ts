@@ -81,6 +81,17 @@ export interface DepositResponse {
   usdt_amount?: number
 }
 
+// 提现响应接口
+export interface WithdrawResponse {
+  transaction_id: number
+  order_no: string
+  amount: number
+  fee: number
+  actual_amount: number
+  status: string
+  created_at: string
+}
+
 // 系统设置接口
 export interface SystemSetting {
   name: string
@@ -91,6 +102,8 @@ export interface SystemSetting {
     max_amount: number
     usdt_gift_rate: number
     cashapp_gift_rate: number
+    fee_rate: number
+    daily_limit?: number
     [key: string]: any
   }
 }
@@ -160,6 +173,16 @@ class AuthService {
     const response = await api.post('/api/user/createDeposit', {
       amount,
       method
+    })
+    return response.data
+  }
+
+  // 创建提现订单
+  async createWithdraw(amount: number, method: 'cashapp' | 'usdt', address?: string): Promise<WithdrawResponse> {
+    const response = await api.post('/api/user/createWithdraw', {
+      amount,
+      method,
+      account: address
     })
     return response.data
   }

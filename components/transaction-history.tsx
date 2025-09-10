@@ -119,7 +119,12 @@ export function TransactionHistory({ type = "deposit", refreshKey }: Transaction
                   <div className="font-semibold">
                     ${transaction.amount.toFixed(2)}
                   </div>
-                  {transaction.gift > 0 && (
+                  {transaction.type === 'withdraw' && transaction.fee > 0 && (
+                    <div className="text-xs text-red-600">
+                      -${transaction.fee.toFixed(2)} fee
+                    </div>
+                  )}
+                  {transaction.type === 'deposit' && transaction.gift > 0 && (
                     <div className="text-xs text-green-600">
                       +${transaction.gift.toFixed(2)} gift
                     </div>
