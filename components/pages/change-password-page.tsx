@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Eye, EyeOff, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useProfile } from "@/hooks/use-profile"
 
 interface ChangePasswordPageProps {
   onBack: () => void
 }
 
 export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
+  const { changePassword, isUpdating } = useProfile()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -40,7 +42,7 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
   const passwordStrength = validatePassword(newPassword)
   const isPasswordValid = Object.values(passwordStrength).every(Boolean)
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentPassword) {
       toast({
         title: "Current Password Required",
@@ -68,11 +70,15 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
       return
     }
 
-    toast({
-      title: "Password Updated",
-      description: "Your password has been successfully updated.",
-    })
-    setTimeout(() => onBack(), 1500)
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      setTimeout(() => onBack(), 1500)
+    } catch (error) {
+      // 错误已在useProfile中处理
+    }
   }
 
   return (
@@ -108,6 +114,7 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
+                  disabled={isUpdating}
                 />
                 <Button
                   type="button"
@@ -133,6 +140,7 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
+                  disabled={isUpdating}
                 />
                 <Button
                   type="button"
@@ -182,6 +190,7 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
+                  disabled={isUpdating}
                 />
                 <Button
                   type="button"
@@ -195,8 +204,8 @@ export function ChangePasswordPage({ onBack }: ChangePasswordPageProps) {
               </div>
             </div>
 
-            <Button onClick={handleSave} className="w-full" size="lg">
-              Update Password
+            <Button onClick={handleSave} className="w-full" size="lg" disabled={isUpdating}>
+              {isUpdating ? "Updating..." : "Update Password"}
             </Button>
           </CardContent>
         </Card>

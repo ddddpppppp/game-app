@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useProfile } from "@/hooks/use-profile"
 
 interface ChangeNicknamePageProps {
   onBack: () => void
 }
 
 export function ChangeNicknamePage({ onBack }: ChangeNicknamePageProps) {
-  const [nickname, setNickname] = useState("GamerPro2024")
-  const [isChecking, setIsChecking] = useState(false)
+  const { user, updateUserInfo, isUpdating } = useProfile()
+  const [nickname, setNickname] = useState(user?.name || "")
   const { toast } = useToast()
 
   const handleSave = async () => {
@@ -36,17 +37,21 @@ export function ChangeNicknamePage({ onBack }: ChangeNicknamePageProps) {
       return
     }
 
-    setIsChecking(true)
-
-    // Simulate checking availability
-    setTimeout(() => {
-      setIsChecking(false)
+    if (nickname === user?.name) {
       toast({
-        title: "Nickname Updated",
-        description: "Your nickname has been successfully updated.",
+        title: "No Changes",
+        description: "The nickname is the same as your current one.",
+        variant: "destructive",
       })
+      return
+    }
+
+    try {
+      await updateUserInfo({ nickname })
       setTimeout(() => onBack(), 1500)
-    }, 1000)
+    } catch (error) {
+      // 错误已在useProfile中处理
+    }
   }
 
   return (
@@ -77,6 +82,7 @@ export function ChangeNicknamePage({ onBack }: ChangeNicknamePageProps) {
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="Enter your nickname"
                 maxLength={20}
+                disabled={isUpdating}
               />
               <p className="text-xs text-muted-foreground mt-1">{nickname.length}/20 characters</p>
             </div>
@@ -93,8 +99,8 @@ export function ChangeNicknamePage({ onBack }: ChangeNicknamePageProps) {
               </div>
             </div>
 
-            <Button onClick={handleSave} className="w-full" size="lg" disabled={isChecking}>
-              {isChecking ? "Checking availability..." : "Save Changes"}
+            <Button onClick={handleSave} className="w-full" size="lg" disabled={isUpdating}>
+              {isUpdating ? "Updating..." : "Save Changes"}
             </Button>
           </CardContent>
         </Card>

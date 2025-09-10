@@ -7,23 +7,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { authService } from "@/lib/services/auth"
+import { useAuth } from "@/components/auth-provider"
 
 interface LoginPageProps {
-  onLogin: () => void
   onSwitchToRegister: () => void
+  onForgotPassword?: () => void
 }
 
-export function LoginPage({ onLogin, onSwitchToRegister }: LoginPageProps) {
+export function LoginPage({ onSwitchToRegister, onForgotPassword }: LoginPageProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Mock login validation
+    // 基础验证
     if (!email || !password) {
       toast({
         title: "Error",
@@ -34,15 +37,39 @@ export function LoginPage({ onLogin, onSwitchToRegister }: LoginPageProps) {
       return
     }
 
-    // Simulate API call
-    setTimeout(() => {
+    // 邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      })
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      // 调用登录 API
+      const response = await authService.login({ email, password })
+      
+      // 登录成功
+      login(response.token, response.user)
+      
       toast({
         title: "Success",
         description: "Login successful!",
       })
-      onLogin()
+    } catch (error: any) {
+      console.error('Login error:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -88,6 +115,16 @@ export function LoginPage({ onLogin, onSwitchToRegister }: LoginPageProps) {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
+          
+          {/* Forgot Password Link */}
+          {onForgotPassword && (
+            <div className="mt-4 text-center">
+              <button onClick={onForgotPassword} className="text-sm text-primary hover:underline">
+                Forgot your password?
+              </button>
+            </div>
+          )}
+          
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}

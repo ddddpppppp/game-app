@@ -20,24 +20,27 @@ import {
   LogOut,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useProfile } from "@/hooks/use-profile"
 
 interface ProfilePageProps {
   onLogout?: () => void
 }
 
-// Mock user data
-const mockUser = {
-  avatar: "/gaming-avatar-user.jpg",
-  nickname: "GamerPro2024",
-  email: "gamer@example.com",
-  level: 15,
-  totalWins: 127,
-  joinDate: "January 2024",
-  vipStatus: "Gold",
-}
-
 export function ProfilePage({ onLogout }: ProfilePageProps) {
   const router = useRouter()
+  const { user, isRefreshing } = useProfile()
+
+  // 使用真实用户数据，如果没有则使用默认值
+  const userData = {
+    avatar: user?.avatar || "/gaming-avatar-user.jpg",
+    nickname: user?.name || "Player",
+    email: user?.email || "player@example.com",
+    level: user?.level || 1, // 这些字段可能需要从其他 API 获取
+    totalWins: user?.total_wins || 0,
+    joinDate: user?.join_date || "Recently",
+    balance: user?.balance || 0,
+    vip: user?.vip || "Standard",
+  }
 
   const mainMenuItems = [
     {
@@ -131,23 +134,23 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
           <CardContent className="px-6 py-0 pt-6 pb-6">
             <div className="flex items-center gap-4 mb-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={mockUser.avatar || "/placeholder.svg"} />
+                <AvatarImage src={userData.avatar || "/placeholder.svg"} />
                 <AvatarFallback>
                   <User className="h-8 w-8" />
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold">{mockUser.nickname}</h2>
+                  <h2 className="text-xl font-bold">{userData.nickname}</h2>
                   <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                    {mockUser.vipStatus}
+                    {userData.vip}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground mb-2">
                   <Mail className="h-4 w-4" />
-                  <span className="text-sm">{mockUser.email}</span>
+                  <span className="text-sm">{userData.email}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">Member since {mockUser.joinDate}</p>
+                <p className="text-xs text-muted-foreground">Member since {userData.joinDate}</p>
               </div>
             </div>
 
@@ -156,21 +159,21 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Star className="h-4 w-4 text-accent" />
-                  <span className="font-semibold">{mockUser.level}</span>
+                  <span className="font-semibold">{userData.level}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Level</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Trophy className="h-4 w-4 text-yellow-500" />
-                  <span className="font-semibold">{mockUser.totalWins}</span>
+                  <span className="font-semibold">{userData.totalWins}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Total Wins</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <CreditCard className="h-4 w-4 text-green-500" />
-                  <span className="font-semibold">$1,234</span>
+                  <span className="font-semibold">${userData.balance}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Balance</p>
               </div>

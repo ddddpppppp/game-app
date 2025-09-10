@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, Camera, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useProfile } from "@/hooks/use-profile"
 
 interface ChangeAvatarPageProps {
   onBack: () => void
@@ -21,15 +22,76 @@ const avatarOptions = [
 ]
 
 export function ChangeAvatarPage({ onBack }: ChangeAvatarPageProps) {
-  const [selectedAvatar, setSelectedAvatar] = useState(avatarOptions[0])
+  const { user, updateUserInfo, uploadFile, isUpdating, isUploading } = useProfile()
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar || "")
 
-  const handleSave = () => {
-    toast({
-      title: "Avatar Updated",
-      description: "Your profile avatar has been successfully updated.",
-    })
-    setTimeout(() => onBack(), 1500)
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // 验证文件大小 (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 10MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const uploadResult = await uploadFile(file)
+      setSelectedAvatar(uploadResult.url)
+      toast({
+        title: "Upload Successful",
+        description: "Image uploaded successfully. Click Save Changes to apply.",
+      })
+    } catch (error) {
+      // 错误已在useProfile中处理
+    }
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleSave = async () => {
+    if (!selectedAvatar) {
+      toast({
+        title: "No Avatar Selected",
+        description: "Please select an avatar.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (selectedAvatar === user?.avatar) {
+      toast({
+        title: "No Changes",
+        description: "The selected avatar is the same as your current one.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await updateUserInfo({ avatar: selectedAvatar })
+      setTimeout(() => onBack(), 1500)
+    } catch (error) {
+      // 错误已在useProfile中处理
+    }
   }
 
   return (
@@ -57,15 +119,27 @@ export function ChangeAvatarPage({ onBack }: ChangeAvatarPageProps) {
                 <Camera className="h-8 w-8" />
               </AvatarFallback>
             </Avatar>
-            <Button variant="outline" className="w-full bg-transparent">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <Button 
+              variant="outline" 
+              className="w-full bg-transparent" 
+              onClick={handleUploadClick}
+              disabled={isUploading}
+            >
               <Upload className="h-4 w-4 mr-2" />
-              Upload Custom Image
+              {isUploading ? "Uploading..." : "Upload Custom Image"}
             </Button>
           </CardContent>
         </Card>
 
         {/* Avatar Options */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>Choose from Gallery</CardTitle>
           </CardHeader>
@@ -78,6 +152,7 @@ export function ChangeAvatarPage({ onBack }: ChangeAvatarPageProps) {
                   className={`relative rounded-lg overflow-hidden border-2 transition-colors ${
                     selectedAvatar === avatar ? "border-accent" : "border-border hover:border-accent/50"
                   }`}
+                  disabled={isUpdating || isUploading}
                 >
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={avatar || "/placeholder.svg"} />
@@ -87,10 +162,15 @@ export function ChangeAvatarPage({ onBack }: ChangeAvatarPageProps) {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
-        <Button onClick={handleSave} className="w-full" size="lg">
-          Save Changes
+        <Button 
+          onClick={handleSave} 
+          className="w-full" 
+          size="lg" 
+          disabled={isUpdating || isUploading}
+        >
+          {isUpdating ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>
