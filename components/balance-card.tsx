@@ -3,15 +3,33 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, TrendingUp, TrendingDown } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useProfile } from "@/hooks/use-profile"
+import { authService, type DailyChange } from "@/lib/services/auth"
 
 export function BalanceCard() {
   const [showBalance, setShowBalance] = useState(true)
+  const [dailyChange, setDailyChange] = useState<DailyChange | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const balance = 1234.56
-  const dailyChange = 125.5
-  const dailyChangePercent = 11.3
+  const { user } = useProfile()
+
+  useEffect(() => {
+    loadDailyChange()
+  }, [])
+
+  const loadDailyChange = async () => {
+    try {
+      setLoading(true)
+      const change = await authService.getDailyChange()
+      setDailyChange(change)
+    } catch (error) {
+      console.error('Failed to load daily change:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleDeposit = () => {
     router.push("/wallet/deposit")
@@ -20,6 +38,10 @@ export function BalanceCard() {
   const handleWithdraw = () => {
     router.push("/wallet/withdraw")
   }
+
+  const balance = user?.balance || 0
+  const changeAmount = dailyChange?.today_change || 0
+  const changePercent = dailyChange?.today_change_percent || 0
 
   return (
     <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
@@ -45,17 +67,26 @@ export function BalanceCard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6">
-          {dailyChange >= 0 ? (
-            <TrendingUp className="h-4 w-4 text-green-300" />
-          ) : (
-            <TrendingDown className="h-4 w-4 text-red-300" />
-          )}
-          <span className="text-sm">
-            {dailyChange >= 0 ? "+" : ""}${Math.abs(dailyChange).toFixed(2)} ({dailyChangePercent >= 0 ? "+" : ""}
-            {dailyChangePercent}%) today
-          </span>
-        </div>
+        {!loading && dailyChange && (
+          <div className="flex items-center gap-2 mb-6">
+            {changeAmount >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-green-300" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-red-300" />
+            )}
+            <span className="text-sm">
+              {changeAmount >= 0 ? "+" : ""}${Math.abs(changeAmount).toFixed(2)} ({changePercent >= 0 ? "+" : ""}
+              {changePercent.toFixed(1)}%) today
+            </span>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-4 w-4 rounded bg-primary-foreground/20 animate-pulse" />
+            <div className="h-4 w-24 rounded bg-primary-foreground/20 animate-pulse" />
+          </div>
+        )}
 
         <div className="flex gap-3">
           <Button onClick={handleDeposit} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">

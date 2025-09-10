@@ -8,7 +8,7 @@ export function useProfile() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const { user, login } = useAuth()
+  const { user, login, resetUser } = useAuth()
   const { toast } = useToast()
 
   const refreshUserInfo = async () => {
@@ -17,9 +17,7 @@ export function useProfile() {
       const response = await authService.getUserInfo()
       
       // 更新认证上下文中的用户信息
-      if (!localStorage.getItem('token')) {
-        login(response.token, response.user)
-      }
+      resetUser(response.user)
       
       return response.user
     } catch (error: any) {

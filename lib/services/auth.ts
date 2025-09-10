@@ -92,6 +92,23 @@ export interface WithdrawResponse {
   created_at: string
 }
 
+// 余额历史接口
+export interface BalanceHistory {
+  id: number
+  type: string
+  amount: number
+  description: string
+  created_at: string
+}
+
+// 今日变化接口
+export interface DailyChange {
+  today_change: number
+  today_change_percent: number
+  yesterday_balance: number
+  today_balance: number
+}
+
 // 系统设置接口
 export interface SystemSetting {
   name: string
@@ -102,7 +119,7 @@ export interface SystemSetting {
     max_amount: number
     usdt_gift_rate: number
     cashapp_gift_rate: number
-    fee_rate: number
+    fee_rate?: number
     daily_limit?: number
     [key: string]: any
   }
@@ -209,6 +226,26 @@ class AuthService {
     const response = await api.get('/api/api/getSystemSettings', {
       params: { type }
     })
+    return response.data
+  }
+
+  // 获取余额历史
+  async getBalanceHistory(params?: {
+    page?: number
+    limit?: number
+  }): Promise<{
+    balance_list: BalanceHistory[]
+    total: number
+    current_page: number
+    last_page: number
+  }> {
+    const response = await api.get('/api/user/getBalanceHistory', { params })
+    return response.data
+  }
+
+  // 获取今日变化
+  async getDailyChange(): Promise<DailyChange> {
+    const response = await api.get('/api/user/getDailyChange')
     return response.data
   }
 

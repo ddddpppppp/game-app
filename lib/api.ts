@@ -23,7 +23,7 @@ api.interceptors.request.use(
     }
     
     // 添加时区信息
-    config.headers.Timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
+    config.headers.Timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'
     
     return config
   },

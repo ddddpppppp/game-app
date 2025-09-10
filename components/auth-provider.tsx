@@ -10,6 +10,7 @@ interface AuthContextType {
   user: User | null
   login: (token: string, user: User) => void
   logout: () => void
+  resetUser: (user: User) => void
   isLoading: boolean
 }
 
@@ -121,6 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/home")
   }
 
+  const resetUser = (userData: User) => {
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+  }
+
   const logout = async () => {
     try {
       await authService.logout()
@@ -145,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, resetUser }}>
       {children}
     </AuthContext.Provider>
   )
