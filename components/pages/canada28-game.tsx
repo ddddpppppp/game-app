@@ -21,82 +21,59 @@ interface BetType {
   id: string
   name: string
   multiplier: string
-  category: string
 }
 
-const betTypes: BetType[] = [
 
-  // Single Numbers (0-27)
-  { id: "num-0", name: "0", multiplier: "280x", category: "single" },
-  { id: "num-1", name: "1", multiplier: "280x", category: "single" },
-  { id: "num-2", name: "2", multiplier: "60x", category: "single" },
-  { id: "num-3", name: "3", multiplier: "40x", category: "single" },
-  { id: "num-4", name: "4", multiplier: "30x", category: "single" },
-  { id: "num-5", name: "5", multiplier: "25x", category: "single" },
-  { id: "num-6", name: "6", multiplier: "22x", category: "single" },
-  { id: "num-7", name: "7", multiplier: "20x", category: "single" },
-  { id: "num-8", name: "8", multiplier: "18x", category: "single" },
-  { id: "num-9", name: "9", multiplier: "16x", category: "single" },
-  { id: "num-10", name: "10", multiplier: "15x", category: "single" },
-  { id: "num-11", name: "11", multiplier: "14x", category: "single" },
-  { id: "num-12", name: "12", multiplier: "13x", category: "single" },
-  { id: "num-13", name: "13", multiplier: "12x", category: "single" },
-  { id: "num-14", name: "14", multiplier: "12x", category: "single" },
-  { id: "num-15", name: "15", multiplier: "13x", category: "single" },
-  { id: "num-16", name: "16", multiplier: "14x", category: "single" },
-  { id: "num-17", name: "17", multiplier: "15x", category: "single" },
-  { id: "num-18", name: "18", multiplier: "16x", category: "single" },
-  { id: "num-19", name: "19", multiplier: "18x", category: "single" },
-  { id: "num-20", name: "20", multiplier: "20x", category: "single" },
-  { id: "num-21", name: "21", multiplier: "22x", category: "single" },
-  { id: "num-22", name: "22", multiplier: "25x", category: "single" },
-  { id: "num-23", name: "23", multiplier: "30x", category: "single" },
-  { id: "num-24", name: "24", multiplier: "40x", category: "single" },
-  { id: "num-25", name: "25", multiplier: "60x", category: "single" },
-  { id: "num-26", name: "26", multiplier: "280x", category: "single" },
-  { id: "num-27", name: "27", multiplier: "280x", category: "single" },
 
-  // Basic Bets
-  { id: "high", name: "High (14-27)", multiplier: "3.0x", category: "basic" },
-  { id: "low", name: "Low (0-13)", multiplier: "3.0x", category: "basic" },
-  { id: "odd", name: "Odd", multiplier: "3.0x", category: "basic" },
-  { id: "even", name: "Even", multiplier: "3.0x", category: "basic" },
-
-  // Extreme Bets
-  { id: "extreme-high", name: "Extreme High (22-27)", multiplier: "10x", category: "extreme" },
-  { id: "extreme-low", name: "Extreme Low (0-5)", multiplier: "10x", category: "extreme" },
-
-  // Combination Bets
-  { id: "high-odd", name: "High Odd", multiplier: "6.5x", category: "combination" },
-  { id: "high-even", name: "High Even", multiplier: "6.5x", category: "combination" },
-  { id: "low-odd", name: "Low Odd", multiplier: "6.5x", category: "combination" },
-  { id: "low-even", name: "Low Even", multiplier: "6.5x", category: "combination" },
-
-  // Last Digit Bets
-  { id: "last-high", name: "Last Digit High", multiplier: "2.4x", category: "last-digit" },
-  { id: "last-low", name: "Last Digit Low", multiplier: "2.4x", category: "last-digit" },
-  { id: "last-odd", name: "Last Digit Odd", multiplier: "2.4x", category: "last-digit" },
-  { id: "last-even", name: "Last Digit Even", multiplier: "2.4x", category: "last-digit" },
-  { id: "last-high-odd", name: "Last Digit High Odd", multiplier: "4.8x", category: "last-digit" },
-  { id: "last-high-even", name: "Last Digit High Even", multiplier: "4.8x", category: "last-digit" },
-  { id: "last-low-odd", name: "Last Digit Low Odd", multiplier: "4.8x", category: "last-digit" },
-  { id: "last-low-even", name: "Last Digit Low Even", multiplier: "4.8x", category: "last-digit" },
-
-  // Special Bets
-  { id: "triple", name: "Triple", multiplier: "50x", category: "special" },
-  { id: "straight", name: "Straight", multiplier: "10x", category: "special" },
-  { id: "pair", name: "Pair", multiplier: "3x", category: "special" },
-
-]
-
+// 投注分类
 const betCategories = [
-  { id: "single", name: "Single Numbers", icon: "🔢" },
   { id: "basic", name: "Basic Bets", icon: "🎯" },
-  { id: "extreme", name: "Extreme Bets", icon: "⚡" },
-  { id: "combination", name: "Combination", icon: "🎲" },
-  { id: "last-digit", name: "Last Digit", icon: "🔟" },
+  { id: "combination", name: "Combination Bets", icon: "🎲" },
   { id: "special", name: "Special Bets", icon: "⭐" },
+  { id: "sum", name: "The Sum", icon: "🔢" },
 ]
+
+// 分组投注选项
+const betGroups = {
+  basic: [
+    { id: "big", name: "Big", multiplier: "3.0x" },
+    { id: "small", name: "Small", multiplier: "3.0x" },
+    { id: "odd", name: "Odd", multiplier: "3.0x" },
+    { id: "even", name: "Even", multiplier: "3.0x" },
+  ],
+  combination: [
+    { id: "big-odd", name: "Big Odd", multiplier: "6.5x" },
+    { id: "small-odd", name: "Small Odd", multiplier: "6.5x" },
+    { id: "big-even", name: "Big Even", multiplier: "6.5x" },
+    { id: "small-even", name: "Small Even", multiplier: "6.5x" },
+  ],
+  special: [
+    { id: "extreme-small", name: "Extreme Small", multiplier: "10x" },
+    { id: "extreme-big", name: "Extreme Big", multiplier: "10x" },
+    { id: "triple", name: "Triple", multiplier: "50x" },
+    { id: "double", name: "Double", multiplier: "3x" },
+    { id: "straight", name: "Straight", multiplier: "10x" },
+  ]
+}
+
+// 特码选项 (0-27)
+const sumOptions: BetType[] = Array.from({length: 28}, (_, i) => ({
+  id: `sum-${i}`,
+  name: `${i}`,
+  multiplier: i === 0 || i === 1 || i === 26 || i === 27 ? "280x" : 
+              i === 2 || i === 25 ? "60x" :
+              i === 3 || i === 24 ? "40x" :
+              i === 4 || i === 23 ? "30x" :
+              i === 5 || i === 22 ? "25x" :
+              i === 6 || i === 21 ? "22x" :
+              i === 7 || i === 20 ? "20x" :
+              i === 8 || i === 19 ? "18x" :
+              i === 9 || i === 18 ? "16x" :
+              i === 10 || i === 17 ? "15x" :
+              i === 11 || i === 16 ? "14x" :
+              i === 12 || i === 15 ? "13x" :
+              i === 13 || i === 14 ? "12x" : "1x"
+}))
 
 const quickAmounts = [10, 50, 100, 500, 1000]
 
@@ -110,12 +87,13 @@ export function Canada28Game() {
       timestamp: new Date(),
     },
   ])
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
   const [selectedBetType, setSelectedBetType] = useState<BetType | null>(null)
   const [betAmount, setBetAmount] = useState("")
   const [balance] = useState(5000) // Mock balance
   const [showRules, setShowRules] = useState(true)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   
   // Lottery state
   const [currentPeriod] = useState(3333197)
@@ -202,9 +180,9 @@ export function Canada28Game() {
     setMessages((prev) => [...prev, userMessage, botMessage])
 
     // Reset bet selection
-    setSelectedCategory(null)
     setSelectedBetType(null)
     setBetAmount("")
+    setSelectedCategory(null)
 
     toast({
       title: "Bet Placed!",
@@ -249,40 +227,39 @@ export function Canada28Game() {
               <ScrollArea className="max-h-96">
                 <div className="space-y-4 text-sm">
                   <div>
-                    <h4 className="font-semibold mb-2">1. High / Low</h4>
-                    <p>Low: 0–13, High: 14–27</p>
+                    <h4 className="font-semibold mb-2">1. Big / Small</h4>
+                    <p>Small: 0–13, Big: 14–27</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">2. Odd / Even</h4>
-                    <p>Based on whether the total ends with an odd or even digit</p>
+                    <p>Based on whether the total is an odd or even number</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">3. Extreme Bets</h4>
-                    <p>Extreme Low: 0–5, Extreme High: 22–27</p>
+                    <h4 className="font-semibold mb-2">3. Triple</h4>
+                    <p>All three digits identical (e.g., 222, 111).</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">4. Combination Bets</h4>
-                    <p>High Even: 14, 16, 18, 20, 22, 24, 26</p>
-                    <p>Low Even: 00, 02, 04, 06, 08, 10, 12</p>
-                    <p>High Odd: 15, 17, 19, 21, 23, 25, 27</p>
-                    <p>Low Odd: 01, 03, 05, 07, 09, 11, 13</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">5. Straight-Up Bet on Number</h4>
-                    <p>Select any exact total from 0–27.</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">6. Pair</h4>
+                    <h4 className="font-semibold mb-2">4. Double</h4>
                     <p>Any two digits are identical (e.g., 011, 010).</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">7. Straight (Sequence)</h4>
+                    <h4 className="font-semibold mb-2">5. Straight</h4>
                     <p>Three consecutive digits, regardless of order (e.g., 123, 231).</p>
-                    <p>Special straights: 890 and 910 also count as sequences.</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">8. Triple (Trips / Three of a Kind)</h4>
-                    <p>All three digits identical (e.g., 222, 111).</p>
+                    <h4 className="font-semibold mb-2">6. Combination Bets</h4>
+                    <p>Big Odd: 15, 17, 19, 21, 23, 25, 27</p>
+                    <p>Small Odd: 01, 03, 05, 07, 09, 11, 13</p>
+                    <p>Big Even: 14, 16, 18, 20, 22, 24, 26</p>
+                    <p>Small Even: 00, 02, 04, 06, 08, 10, 12</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">7. Extreme Bets</h4>
+                    <p>Extreme Small: 0–5, Extreme Big: 22–27</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">8. The Sum (0-27)</h4>
+                    <p>Select any exact total from 0–27.</p>
                   </div>
                 </div>
               </ScrollArea>
@@ -365,18 +342,16 @@ export function Canada28Game() {
                     Close
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3 p-2">
                   {betCategories.map((category) => (
                     <Button
                       key={category.id}
                       variant="outline"
-                      className="h-auto p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                      className="h-auto min-h-[80px] p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
                       onClick={() => setSelectedCategory(category.id)}
                     >
-                      <div className="flex items-center gap-2 w-full text-foreground">
-                        <span className="text-lg">{category.icon}</span>
-                        <span className="font-medium text-sm">{category.name}</span>
-                      </div>
+                      <span className="text-2xl mb-2">{category.icon}</span>
+                      <span className="font-bold text-xs leading-tight">{category.name}</span>
                     </Button>
                   ))}
                 </div>
@@ -387,50 +362,39 @@ export function Canada28Game() {
                   <h3 className="font-semibold text-foreground">
                     {betCategories.find((c) => c.id === selectedCategory)?.name}
                   </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedCategory(null)}
-                    className="text-foreground"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedCategory(null)} className="text-foreground">
                     Back
                   </Button>
                 </div>
-{selectedCategory === "single" ? (
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    <div className="grid grid-cols-4 gap-2">
-                      {betTypes
-                        .filter((bet) => bet.category === selectedCategory)
-                        .map((bet) => (
-                          <Button
-                            key={bet.id}
-                            variant="outline"
-                            className="h-auto p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col"
-                            onClick={() => setSelectedBetType(bet)}
-                          >
-                            <span className="text-lg font-bold">{bet.name}</span>
-                            <span className="text-xs text-muted-foreground">{bet.multiplier}</span>
-                          </Button>
-                        ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {betTypes
-                      .filter((bet) => bet.category === selectedCategory)
-                      .map((bet) => (
+                {selectedCategory === "sum" ? (
+                  <ScrollArea>
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {sumOptions.map((bet) => (
                         <Button
                           key={bet.id}
                           variant="outline"
-                          className="w-full h-auto p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                          className="h-auto min-h-[50px] p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
                           onClick={() => setSelectedBetType(bet)}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-sm text-foreground">{bet.name}</span>
-                            <Badge variant="secondary">{bet.multiplier}</Badge>
-                          </div>
+                          <span className="font-bold text-xs">{bet.name}</span>
+                          <span className="text-xs text-muted-foreground">{bet.multiplier}</span>
                         </Button>
                       ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 p-2">
+                    {betGroups[selectedCategory as keyof typeof betGroups]?.map((bet) => (
+                      <Button
+                        key={bet.id}
+                        variant="outline"
+                        className="h-auto min-h-[60px] p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
+                        onClick={() => setSelectedBetType(bet)}
+                      >
+                        <span className="font-bold text-xs leading-tight break-words">{bet.name}</span>
+                        <span className="text-xs text-muted-foreground mt-1">{bet.multiplier}</span>
+                      </Button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -438,8 +402,8 @@ export function Canada28Game() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-foreground">{selectedBetType.name}</h3>
-                    <p className="text-sm text-muted-foreground">Multiplier: {selectedBetType.multiplier}</p>
+                    <h3 className="font-semibold text-foreground">{selectedBetType?.name}</h3>
+                    <p className="text-sm text-muted-foreground">Multiplier: {selectedBetType?.multiplier}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -496,12 +460,12 @@ export function Canada28Game() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">Potential Winnings:</span>
                             <span className="font-semibold text-green-600">
-                              ${(Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))).toFixed(2)}
+                              ${selectedBetType ? (Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))).toFixed(2) : '0.00'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                             <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
-                            <span>Profit: ${((Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))) - Number.parseFloat(betAmount)).toFixed(2)}</span>
+                            <span>Profit: ${selectedBetType ? ((Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))) - Number.parseFloat(betAmount)).toFixed(2) : '0.00'}</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
