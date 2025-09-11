@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,37 @@ interface BetType {
 }
 
 const betTypes: BetType[] = [
+
+  // Single Numbers (0-27)
+  { id: "num-0", name: "0", multiplier: "280x", category: "single" },
+  { id: "num-1", name: "1", multiplier: "280x", category: "single" },
+  { id: "num-2", name: "2", multiplier: "60x", category: "single" },
+  { id: "num-3", name: "3", multiplier: "40x", category: "single" },
+  { id: "num-4", name: "4", multiplier: "30x", category: "single" },
+  { id: "num-5", name: "5", multiplier: "25x", category: "single" },
+  { id: "num-6", name: "6", multiplier: "22x", category: "single" },
+  { id: "num-7", name: "7", multiplier: "20x", category: "single" },
+  { id: "num-8", name: "8", multiplier: "18x", category: "single" },
+  { id: "num-9", name: "9", multiplier: "16x", category: "single" },
+  { id: "num-10", name: "10", multiplier: "15x", category: "single" },
+  { id: "num-11", name: "11", multiplier: "14x", category: "single" },
+  { id: "num-12", name: "12", multiplier: "13x", category: "single" },
+  { id: "num-13", name: "13", multiplier: "12x", category: "single" },
+  { id: "num-14", name: "14", multiplier: "12x", category: "single" },
+  { id: "num-15", name: "15", multiplier: "13x", category: "single" },
+  { id: "num-16", name: "16", multiplier: "14x", category: "single" },
+  { id: "num-17", name: "17", multiplier: "15x", category: "single" },
+  { id: "num-18", name: "18", multiplier: "16x", category: "single" },
+  { id: "num-19", name: "19", multiplier: "18x", category: "single" },
+  { id: "num-20", name: "20", multiplier: "20x", category: "single" },
+  { id: "num-21", name: "21", multiplier: "22x", category: "single" },
+  { id: "num-22", name: "22", multiplier: "25x", category: "single" },
+  { id: "num-23", name: "23", multiplier: "30x", category: "single" },
+  { id: "num-24", name: "24", multiplier: "40x", category: "single" },
+  { id: "num-25", name: "25", multiplier: "60x", category: "single" },
+  { id: "num-26", name: "26", multiplier: "280x", category: "single" },
+  { id: "num-27", name: "27", multiplier: "280x", category: "single" },
+
   // Basic Bets
   { id: "high", name: "High (14-27)", multiplier: "3.0x", category: "basic" },
   { id: "low", name: "Low (0-13)", multiplier: "3.0x", category: "basic" },
@@ -55,13 +86,15 @@ const betTypes: BetType[] = [
   { id: "triple", name: "Triple", multiplier: "50x", category: "special" },
   { id: "straight", name: "Straight", multiplier: "10x", category: "special" },
   { id: "pair", name: "Pair", multiplier: "3x", category: "special" },
+
 ]
 
 const betCategories = [
+  { id: "single", name: "Single Numbers", icon: "🔢" },
   { id: "basic", name: "Basic Bets", icon: "🎯" },
   { id: "extreme", name: "Extreme Bets", icon: "⚡" },
   { id: "combination", name: "Combination", icon: "🎲" },
-  { id: "last-digit", name: "Last Digit", icon: "🔢" },
+  { id: "last-digit", name: "Last Digit", icon: "🔟" },
   { id: "special", name: "Special Bets", icon: "⭐" },
 ]
 
@@ -83,13 +116,54 @@ export function Canada28Game() {
   const [balance] = useState(5000) // Mock balance
   const [showRules, setShowRules] = useState(true)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
+  
+  // Lottery state
+  const [currentPeriod] = useState(3333197)
+  const [timeLeft, setTimeLeft] = useState(180) // 3 minutes in seconds
+  const [isDrawing, setIsDrawing] = useState(false)
+  
   const { toast } = useToast()
+
+  // Countdown timer effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsDrawing(true)
+          // Simulate drawing for 10 seconds
+          setTimeout(() => {
+            setIsDrawing(false)
+            setTimeLeft(180) // Reset to 3 minutes
+          }, 10000)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   const handleBack = () => {
     router.back()
   }
 
   const handlePlaceBet = () => {
+    if (isDrawing) {
+      toast({
+        title: "Drawing in Progress",
+        description: "Please wait for the current draw to complete.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (!selectedBetType || !betAmount || Number.parseFloat(betAmount) <= 0) {
       toast({
         title: "Invalid Bet",
@@ -148,8 +222,17 @@ export function Canada28Game() {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="font-bold text-lg text-foreground">Keno</h1>
-              <p className="text-sm text-muted-foreground">Balance: ${balance}</p>
+              <h1 className="font-bold text-lg text-foreground">Keno #{currentPeriod}</h1>
+              <div className="flex items-center gap-2 text-sm">
+                {isDrawing ? (
+                  <span className="text-orange-500 font-medium">Drawing...</span>
+                ) : (
+                  <>
+                    <span className="text-muted-foreground">Current draw:</span>
+                    <span className="font-mono font-semibold text-blue-600">{formatTime(timeLeft)}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <Dialog open={showRules} onOpenChange={setShowRules}>
@@ -313,23 +396,43 @@ export function Canada28Game() {
                     Back
                   </Button>
                 </div>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {betTypes
-                    .filter((bet) => bet.category === selectedCategory)
-                    .map((bet) => (
-                      <Button
-                        key={bet.id}
-                        variant="outline"
-                        className="w-full h-auto p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => setSelectedBetType(bet)}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <span className="text-sm text-foreground">{bet.name}</span>
-                          <Badge variant="secondary">{bet.multiplier}</Badge>
-                        </div>
-                      </Button>
-                    ))}
-                </div>
+{selectedCategory === "single" ? (
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="grid grid-cols-4 gap-2">
+                      {betTypes
+                        .filter((bet) => bet.category === selectedCategory)
+                        .map((bet) => (
+                          <Button
+                            key={bet.id}
+                            variant="outline"
+                            className="h-auto p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col"
+                            onClick={() => setSelectedBetType(bet)}
+                          >
+                            <span className="text-lg font-bold">{bet.name}</span>
+                            <span className="text-xs text-muted-foreground">{bet.multiplier}</span>
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {betTypes
+                      .filter((bet) => bet.category === selectedCategory)
+                      .map((bet) => (
+                        <Button
+                          key={bet.id}
+                          variant="outline"
+                          className="w-full h-auto p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => setSelectedBetType(bet)}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-sm text-foreground">{bet.name}</span>
+                            <Badge variant="secondary">{bet.multiplier}</Badge>
+                          </div>
+                        </Button>
+                      ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -371,9 +474,44 @@ export function Canada28Game() {
                       onChange={(e) => setBetAmount(e.target.value)}
                       className="flex-1"
                     />
-                    <Button onClick={handlePlaceBet} className="px-6">
-                      Bet
+                    <Button 
+                      onClick={handlePlaceBet} 
+                      className="px-6" 
+                      disabled={isDrawing}
+                    >
+                      {isDrawing ? "Drawing..." : "Bet"}
                     </Button>
+                  </div>
+
+                  {/* Balance and potential winnings display */}
+                  <div className="bg-muted/50 rounded-lg p-3 border space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Current Balance:</span>
+                      <span className="font-semibold text-foreground">${balance}</span>
+                    </div>
+                    
+                    {betAmount && Number.parseFloat(betAmount) > 0 && (
+                      <>
+                        <div className="border-t border-border pt-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Potential Winnings:</span>
+                            <span className="font-semibold text-green-600">
+                              ${(Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                            <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
+                            <span>Profit: ${((Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))) - Number.parseFloat(betAmount)).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Remaining balance:</span>
+                          <span className={`font-medium ${balance - Number.parseFloat(betAmount) < 0 ? 'text-red-500' : 'text-foreground'}`}>
+                            ${(balance - Number.parseFloat(betAmount)).toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
