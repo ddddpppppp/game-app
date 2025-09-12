@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 import { useProfile } from "@/hooks/use-profile"
 import { gameService, type BetType, type GameData, type CurrentDraw, type GroupMessage, type DrawHistory, type BetHistory } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
+import { WebSocketManager } from "@/lib/utils/websocket"
 
 // 投注分类
 const betCategories = [
@@ -50,6 +51,10 @@ export function Canada28Game() {
   // 计时器状态
   const [timeLeft, setTimeLeft] = useState(0)
   const [isDrawing, setIsDrawing] = useState(false)
+  
+  // WebSocket状态
+  const [wsManager, setWsManager] = useState<WebSocketManager | null>(null)
+  const [wsConnected, setWsConnected] = useState(false)
   
   const { toast } = useToast()
   
@@ -168,6 +173,68 @@ export function Canada28Game() {
     }
   }
 
+  // 初始化WebSocket连接
+  const initializeWebSocket = async () => {
+    
+    try {
+      const wsUrl = `/game_canada28_ws/connect`
+
+      const manager = new WebSocketManager({
+        url: wsUrl,
+        onConnect: () => {
+          console.log('WebSocket 连接成功')
+          setWsConnected(true)
+        },
+        onDisconnect: () => {
+          console.log('WebSocket 连接断开')
+          setWsConnected(false)
+        },
+        onError: (error) => {
+          console.error('WebSocket 错误:', error)
+          setWsConnected(false)
+        },
+        onMessage: (data) => {
+          console.log('收到WebSocket消息:', data)
+          handleWebSocketMessage(data)
+        }
+      })
+
+      setWsManager(manager)
+      
+      // 建立连接，添加认证头
+      await manager.connect()
+      
+    } catch (error) {
+      console.error('初始化WebSocket失败:', error)
+    }
+  }
+
+  // 处理WebSocket消息
+  const handleWebSocketMessage = (data: any) => {
+    switch (data.action) {
+      case 'new_message':
+        // 收到新的聊天消息，直接添加到消息列表
+        if (data.data) {
+          setMessages(prev => [...prev, data.data])
+        }
+        break
+      case 'game_update':
+        // 收到游戏更新，刷新游戏数据
+        fetchGameData(true)
+        break
+      case 'draw_result':
+        // 收到开奖结果
+        toast({
+          title: "开奖完成",
+          description: "新一期开奖结果已出",
+        })
+        fetchGameData(true)
+        break
+      default:
+        console.log('未处理的WebSocket消息类型:', data.action)
+    }
+  }
+
   // 初始化游戏数据和消息
   useEffect(() => {
     const initializeData = async () => {
@@ -176,6 +243,11 @@ export function Canada28Game() {
           fetchGameData(),
           fetchMessages()
         ])
+        
+        // 数据加载完成后初始化WebSocket
+        if (user) {
+          initializeWebSocket()
+        }
       } catch (error) {
         console.error('Failed to initialize data:', error)
       }
@@ -221,7 +293,14 @@ export function Canada28Game() {
     return () => clearInterval(timer)
   }, [gameData])
 
-
+  // 清理WebSocket连接
+  useEffect(() => {
+    return () => {
+      if (wsManager) {
+        wsManager.disconnect()
+      }
+    }
+  }, [wsManager])
 
   const handleBack = () => {
     router.back()
@@ -359,13 +438,14 @@ export function Canada28Game() {
               </div>
             </div>
           </div>
-          <Dialog open={showRules} onOpenChange={setShowRules}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-foreground bg-transparent">
-                <Info className="w-4 h-4 mr-2" />
-                Rules
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Dialog open={showRules} onOpenChange={setShowRules}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-foreground bg-transparent">
+                  <Info className="w-4 h-4 mr-2" />
+                  Rules
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-[90vw] w-full max-h-[80vh] sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Keno Game Rules</DialogTitle>
@@ -411,6 +491,7 @@ export function Canada28Game() {
               </ScrollArea>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
@@ -455,7 +536,7 @@ export function Canada28Game() {
                       {!isBotMessage && !isMyMessage && (
                         <p className="text-xs font-medium mb-1 opacity-70">{message.nickname}</p>
                       )}
-                      <p className="text-sm break-words">{message.message}</p>
+                      <p className="text-sm break-words whitespace-pre-line">{message.message}</p>
                       <p className="text-xs opacity-70 mt-1">
                         {TimeUtils.formatMessageTime(message.created_at)}
                       </p>
