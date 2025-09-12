@@ -36,7 +36,7 @@ export interface ChangePasswordRequest {
 }
 
 export interface User {
-  id: number
+  uuid: string
   email: string
   name: string
   avatar: string

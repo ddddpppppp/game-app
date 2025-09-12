@@ -45,7 +45,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
     if (!withdrawConfig) return []
 
     const { min_amount, max_amount, fee_rate } = withdrawConfig.config
-    const feePercent = (fee_rate).toFixed(1)
+    const feePercent = (fee_rate || 0).toFixed(1)
 
     return [
       {
@@ -75,7 +75,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
 
   const calculateFee = (amount: number) => {
     if (!withdrawConfig || !amount) return 0
-    return amount * (withdrawConfig.config.fee_rate) / 100
+    return amount * (withdrawConfig.config.fee_rate || 0) / 100
   }
 
   const calculateActualAmount = (amount: number) => {
@@ -250,7 +250,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                     <span>${Number.parseFloat(amount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Fee ({(withdrawConfig.config.fee_rate).toFixed(1)}%):</span>
+                    <span>Fee ({(withdrawConfig.config.fee_rate || 0).toFixed(1)}%):</span>
                     <span>-${calculateFee(Number.parseFloat(amount)).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2">

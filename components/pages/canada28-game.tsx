@@ -9,21 +9,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ArrowLeft, Info, Bot, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-
-interface ChatMessage {
-  id: string
-  type: "user" | "bot"
-  content: string
-  timestamp: Date
-}
-
-interface BetType {
-  id: string
-  name: string
-  multiplier: string
-}
-
-
+import { useProfile } from "@/hooks/use-profile"
+import { gameService, type BetType, type GameData, type CurrentDraw, type GroupMessage, type DrawHistory, type BetHistory } from "@/lib/services/game"
+import { TimeUtils } from "@/lib/utils/time"
 
 // 投注分类
 const betCategories = [
@@ -33,85 +21,196 @@ const betCategories = [
   { id: "sum", name: "The Sum", icon: "🔢" },
 ]
 
-// 分组投注选项
-const betGroups = {
-  basic: [
-    { id: "big", name: "Big", multiplier: "3.0x" },
-    { id: "small", name: "Small", multiplier: "3.0x" },
-    { id: "odd", name: "Odd", multiplier: "3.0x" },
-    { id: "even", name: "Even", multiplier: "3.0x" },
-  ],
-  combination: [
-    { id: "big-odd", name: "Big Odd", multiplier: "6.5x" },
-    { id: "small-odd", name: "Small Odd", multiplier: "6.5x" },
-    { id: "big-even", name: "Big Even", multiplier: "6.5x" },
-    { id: "small-even", name: "Small Even", multiplier: "6.5x" },
-  ],
-  special: [
-    { id: "extreme-small", name: "Extreme Small", multiplier: "10x" },
-    { id: "extreme-big", name: "Extreme Big", multiplier: "10x" },
-    { id: "triple", name: "Triple", multiplier: "50x" },
-    { id: "double", name: "Double", multiplier: "3x" },
-    { id: "straight", name: "Straight", multiplier: "10x" },
-  ]
-}
-
-// 特码选项 (0-27)
-const sumOptions: BetType[] = Array.from({length: 28}, (_, i) => ({
-  id: `sum-${i}`,
-  name: `${i}`,
-  multiplier: i === 0 || i === 1 || i === 26 || i === 27 ? "280x" : 
-              i === 2 || i === 25 ? "60x" :
-              i === 3 || i === 24 ? "40x" :
-              i === 4 || i === 23 ? "30x" :
-              i === 5 || i === 22 ? "25x" :
-              i === 6 || i === 21 ? "22x" :
-              i === 7 || i === 20 ? "20x" :
-              i === 8 || i === 19 ? "18x" :
-              i === 9 || i === 18 ? "16x" :
-              i === 10 || i === 17 ? "15x" :
-              i === 11 || i === 16 ? "14x" :
-              i === 12 || i === 15 ? "13x" :
-              i === 13 || i === 14 ? "12x" : "1x"
-}))
-
 const quickAmounts = [10, 50, 100, 500, 1000]
 
 export function Canada28Game() {
   const router = useRouter()
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      type: "bot",
-      content: "Welcome to Canada 28! Place your bets and good luck! 🍀",
-      timestamp: new Date(),
-    },
-  ])
+  const { user, refreshUserInfo } = useProfile()
 
+  // API数据状态
+  const [gameData, setGameData] = useState<GameData | null>(null)
+  const [messages, setMessages] = useState<GroupMessage[]>([])
+  const [drawHistory, setDrawHistory] = useState<DrawHistory[]>([])
+  const [drawHistoryPage, setDrawHistoryPage] = useState(1)
+  const [drawHistoryHasMore, setDrawHistoryHasMore] = useState(true)
+  const [drawHistoryLoading, setDrawHistoryLoading] = useState(false)
+  const [betHistory, setBetHistory] = useState<BetHistory[]>([])
+  const [betHistoryPage, setBetHistoryPage] = useState(1)
+  const [betHistoryHasMore, setBetHistoryHasMore] = useState(true)
+  const [betHistoryLoading, setBetHistoryLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false) // 刷新状态，不阻塞UI
+  const [betting, setBetting] = useState(false) // 投注状态
   const [selectedBetType, setSelectedBetType] = useState<BetType | null>(null)
   const [betAmount, setBetAmount] = useState("")
-  const [balance] = useState(5000) // Mock balance
-  const [showRules, setShowRules] = useState(true)
+  const [showRules, setShowRules] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   
-  // Lottery state
-  const [currentPeriod] = useState(3333197)
-  const [timeLeft, setTimeLeft] = useState(180) // 3 minutes in seconds
+  // 计时器状态
+  const [timeLeft, setTimeLeft] = useState(0)
   const [isDrawing, setIsDrawing] = useState(false)
   
   const { toast } = useToast()
+  
+  // 获取用户余额，提供默认值防止未加载时报错
+  const balance = user?.balance || 0
 
-  // Countdown timer effect
+    const fetchGameData = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+      
+      const data = await gameService.getCanada28Game()
+      setGameData(data)
+      
+      // 设置倒计时（使用本地时间计算）
+      if (data.current_draw) {
+        const calculatedTimeLeft = TimeUtils.calculateTimeLeft(data.current_draw.end_at)
+        setTimeLeft(calculatedTimeLeft)
+        setIsDrawing(data.current_draw.status === 1) // 1表示开奖中
+      }
+    } catch (error) {
+      console.error('Failed to fetch game data:', error)
+      if (!isRefresh) {
+        // 只在初始加载时显示错误toast，刷新时静默处理
+        toast({
+          title: "Error",
+          description: "Failed to load game data",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      if (isRefresh) {
+        setRefreshing(false)
+      } else {
+        setLoading(false)
+      }
+    }
+  }
+
+  const fetchMessages = async () => {
+    try {
+      const data = await gameService.getCanada28Messages()
+      setMessages(data.messages)
+    } catch (error) {
+      console.error('Failed to fetch messages:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const fetchDrawHistory = async (page: number = 1, append: boolean = false) => {
+    try {
+      setDrawHistoryLoading(true)
+      const data = await gameService.getCanada28DrawHistory(page)
+      
+      if (append) {
+        setDrawHistory(prev => [...prev, ...data.draws])
+      } else {
+        setDrawHistory(data.draws)
+      }
+      
+      setDrawHistoryPage(page)
+      setDrawHistoryHasMore(data.has_more)
+    } catch (error) {
+      console.error('Failed to fetch draw history:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load draw history",
+        variant: "destructive",
+      })
+    } finally {
+      setDrawHistoryLoading(false)
+    }
+  }
+
+  const handleLoadMoreHistory = () => {
+    if (drawHistoryHasMore && !drawHistoryLoading) {
+      fetchDrawHistory(drawHistoryPage + 1, true)
+    }
+  }
+
+  const fetchBetHistory = async (page: number = 1, append: boolean = false) => {
+    try {
+      setBetHistoryLoading(true)
+      const data = await gameService.getCanada28BetHistory(page)
+      
+      if (append) {
+        setBetHistory(prev => [...prev, ...data.bets])
+      } else {
+        setBetHistory(data.bets)
+      }
+      
+      setBetHistoryPage(page)
+      setBetHistoryHasMore(data.has_more)
+    } catch (error) {
+      console.error('Failed to fetch bet history:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load bet history",
+        variant: "destructive",
+      })
+    } finally {
+      setBetHistoryLoading(false)
+    }
+  }
+
+  const handleLoadMoreBetHistory = () => {
+    if (betHistoryHasMore && !betHistoryLoading) {
+      fetchBetHistory(betHistoryPage + 1, true)
+    }
+  }
+
+  // 初始化游戏数据和消息
   useEffect(() => {
+    const initializeData = async () => {
+      try {
+        await Promise.all([
+          fetchGameData(),
+          fetchMessages()
+        ])
+      } catch (error) {
+        console.error('Failed to initialize data:', error)
+      }
+    }
+    
+    initializeData()
+  }, [])
+
+  // 当用户切换到开奖历史tab时才加载数据
+  useEffect(() => {
+    if (activeTab === "draw-history" && drawHistory.length === 0) {
+      fetchDrawHistory()
+    }
+  }, [activeTab])
+
+  // 当用户切换到投注历史tab时才加载数据
+  useEffect(() => {
+    if (activeTab === "bet-history" && betHistory.length === 0) {
+      fetchBetHistory()
+    }
+  }, [activeTab])
+
+  // 倒计时效果
+  useEffect(() => {
+    if (!gameData?.current_draw) return
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           setIsDrawing(true)
-          // Simulate drawing for 10 seconds
+          // 模拟开奖10秒
           setTimeout(() => {
             setIsDrawing(false)
-            setTimeLeft(180) // Reset to 3 minutes
+            // 重新获取游戏数据（使用刷新模式，不阻塞UI）
+            fetchGameData(true)
           }, 10000)
           return 0
         }
@@ -120,23 +219,34 @@ export function Canada28Game() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [])
+  }, [gameData])
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+
 
   const handleBack = () => {
     router.back()
   }
 
-  const handlePlaceBet = () => {
+  // 根据分类获取投注选项
+  const getBetsByCategory = (category: string): BetType[] => {
+    if (!gameData) return []
+    return gameService.getBetTypesByCategory(gameData.bet_types, category)
+  }
+
+  const handlePlaceBet = async () => {
     if (isDrawing) {
       toast({
         title: "Drawing in Progress",
         description: "Please wait for the current draw to complete.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (betting) {
+      toast({
+        title: "Betting in Progress",
+        description: "Please wait for the current bet to complete.",
         variant: "destructive",
       })
       return
@@ -161,33 +271,62 @@ export function Canada28Game() {
       return
     }
 
-    // Add user bet message
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: "user",
-      content: `Bet $${amount} on ${selectedBetType.name} (${selectedBetType.multiplier})`,
-      timestamp: new Date(),
+    try {
+      setBetting(true)
+      
+      // 调用投注API
+      const result = await gameService.placeCanada28Bet(selectedBetType.id, amount)
+      
+      // 刷新用户信息以更新余额
+      refreshUserInfo().catch(console.error)
+
+      // 如果当前在投注历史页面，刷新投注历史
+      if (activeTab === "bet-history") {
+        fetchBetHistory()
+      }
+
+      // Reset bet selection
+      setSelectedBetType(null)
+      setBetAmount("")
+      setSelectedCategory(null)
+
+      toast({
+        title: "Bet Placed Successfully!",
+        description: result.message,
+      })
+
+    } catch (error: any) {
+      console.error('Failed to place bet:', error)
+      toast({
+        title: "Bet Failed",
+        description: error.message || "Failed to place bet. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setBetting(false)
     }
+  }
 
-    // Add bot response
-    const botMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      type: "bot",
-      content: `✅ Bet confirmed! $${amount} on ${selectedBetType.name}. Remaining balance: $${balance - amount}`,
-      timestamp: new Date(),
-    }
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading game data...</p>
+        </div>
+      </div>
+    )
+  }
 
-    setMessages((prev) => [...prev, userMessage, botMessage])
-
-    // Reset bet selection
-    setSelectedBetType(null)
-    setBetAmount("")
-    setSelectedCategory(null)
-
-    toast({
-      title: "Bet Placed!",
-      description: `$${amount} bet on ${selectedBetType.name}`,
-    })
+  if (!gameData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Failed to load game data</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -200,14 +339,21 @@ export function Canada28Game() {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="font-bold text-lg text-foreground">Keno #{currentPeriod}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold text-lg text-foreground">
+                  Keno #{gameData.current_draw?.period_number || 'N/A'}
+                </h1>
+                {refreshing && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-sm">
                 {isDrawing ? (
                   <span className="text-orange-500 font-medium">Drawing...</span>
                 ) : (
                   <>
                     <span className="text-muted-foreground">Current draw:</span>
-                    <span className="font-mono font-semibold text-blue-600">{formatTime(timeLeft)}</span>
+                    <span className="font-mono font-semibold text-blue-600">{TimeUtils.formatCountdown(timeLeft)}</span>
                   </>
                 )}
               </div>
@@ -272,34 +418,52 @@ export function Canada28Game() {
       <div className="flex-1 overflow-hidden pb-32">
         <ScrollArea className="h-full px-4 py-4">
           <div className="space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}
-              >
+            {messages.map((message) => {
+              const isMyMessage = gameService.isMyMessage(message, user?.uuid || '')
+              const isBotMessage = gameService.isBotMessage(message)
+              
+              return (
                 <div
-                  className={`flex gap-2 max-w-[75%] sm:max-w-[80%] ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}
+                  key={message.id}
+                  className={`flex gap-3 ${isMyMessage ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.type === "user" ? "bg-accent" : "bg-muted"
-                    }`}
+                    className={`flex gap-2 max-w-[75%] sm:max-w-[80%] ${isMyMessage ? "flex-row-reverse" : "flex-row"}`}
                   >
-                    {message.type === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                  </div>
-                  <div
-                    className={`rounded-lg px-3 py-2 ${
-                      message.type === "user" ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <p className="text-sm break-words">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isMyMessage ? "bg-accent" : "bg-muted"
+                      }`}
+                    >
+                      {isBotMessage ? (
+                        <Bot className="w-4 h-4" />
+                      ) : message.avatar ? (
+                        <img 
+                          src={message.avatar} 
+                          alt={message.nickname}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div
+                      className={`rounded-lg px-3 py-2 ${
+                        isMyMessage ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {!isBotMessage && !isMyMessage && (
+                        <p className="text-xs font-medium mb-1 opacity-70">{message.nickname}</p>
+                      )}
+                      <p className="text-sm break-words">{message.message}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {TimeUtils.formatMessageTime(message.created_at)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </ScrollArea>
       </div>
@@ -366,35 +530,34 @@ export function Canada28Game() {
                     Back
                   </Button>
                 </div>
-                {selectedCategory === "sum" ? (
-                  <ScrollArea>
-                    <div className="grid grid-cols-4 gap-2 p-2">
-                      {sumOptions.map((bet) => (
-                        <Button
-                          key={bet.id}
-                          variant="outline"
-                          className="h-auto min-h-[50px] p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
-                          onClick={() => setSelectedBetType(bet)}
-                        >
-                          <span className="font-bold text-xs">{bet.name}</span>
-                          <span className="text-xs text-muted-foreground">{bet.multiplier}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2 p-2">
-                    {betGroups[selectedCategory as keyof typeof betGroups]?.map((bet) => (
+                
+                <div className={selectedCategory === "sum" ? "grid grid-cols-4 gap-2 p-2" : "grid grid-cols-2 gap-2 p-2"}>
+                  {getBetsByCategory(selectedCategory).map((bet) => {
+                    const isEnabled = gameService.isBetTypeEnabled(bet)
+                    return (
                       <Button
                         key={bet.id}
                         variant="outline"
-                        className="h-auto min-h-[60px] p-2 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
-                        onClick={() => setSelectedBetType(bet)}
+                        disabled={!isEnabled}
+                        className={`h-auto min-h-[50px] p-2 flex flex-col justify-center items-center text-center ${
+                          isEnabled 
+                            ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                            : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                        }`}
+                        onClick={() => isEnabled && setSelectedBetType(bet)}
                       >
-                        <span className="font-bold text-xs leading-tight break-words">{bet.name}</span>
-                        <span className="text-xs text-muted-foreground mt-1">{bet.multiplier}</span>
+                        <span className="font-bold text-xs break-words">{bet.type_name}</span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          {gameService.formatOdds(bet.odds)}
+                        </span>
                       </Button>
-                    ))}
+                    )
+                  })}
+                </div>
+                
+                {getBetsByCategory(selectedCategory).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No bet types available for this category</p>
                   </div>
                 )}
               </div>
@@ -402,8 +565,10 @@ export function Canada28Game() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-foreground">{selectedBetType?.name}</h3>
-                    <p className="text-sm text-muted-foreground">Multiplier: {selectedBetType?.multiplier}</p>
+                    <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Multiplier: {gameService.formatOdds(selectedBetType.odds)}
+                    </p>
                   </div>
                   <Button
                     variant="ghost"
@@ -441,9 +606,9 @@ export function Canada28Game() {
                     <Button 
                       onClick={handlePlaceBet} 
                       className="px-6" 
-                      disabled={isDrawing}
+                      disabled={isDrawing || betting}
                     >
-                      {isDrawing ? "Drawing..." : "Bet"}
+                      {betting ? "Betting..." : isDrawing ? "Drawing..." : "Bet"}
                     </Button>
                   </div>
 
@@ -451,21 +616,21 @@ export function Canada28Game() {
                   <div className="bg-muted/50 rounded-lg p-3 border space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Current Balance:</span>
-                      <span className="font-semibold text-foreground">${balance}</span>
+                      <span className="font-semibold text-foreground">${balance.toFixed(2)}</span>
                     </div>
                     
-                    {betAmount && Number.parseFloat(betAmount) > 0 && (
+                    {betAmount && Number.parseFloat(betAmount) > 0 && selectedBetType && (
                       <>
                         <div className="border-t border-border pt-2">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">Potential Winnings:</span>
                             <span className="font-semibold text-green-600">
-                              ${selectedBetType ? (Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))).toFixed(2) : '0.00'}
+                              ${gameService.calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                             <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
-                            <span>Profit: ${selectedBetType ? ((Number.parseFloat(betAmount) * Number.parseFloat(selectedBetType.multiplier.replace('x', ''))) - Number.parseFloat(betAmount)).toFixed(2) : '0.00'}</span>
+                            <span>Profit: ${gameService.calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)}</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -489,9 +654,68 @@ export function Canada28Game() {
                 Close
               </Button>
             </div>
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No bet history yet</p>
-            </div>
+            
+            {betHistory.length === 0 && !betHistoryLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No bet history yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {betHistory.map((bet) => (
+                  <div key={bet.id} className="bg-card border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">#{bet.period_number}</span>
+                        <Badge className={`text-xs text-white ${gameService.getBetStatusColor(bet.status)}`}>
+                          {bet.status_text}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {TimeUtils.formatMessageTime(bet.created_at)}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">{bet.bet_type_name}</span>
+                        <span className="text-sm text-foreground">${bet.amount.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Multiplier: {gameService.formatOdds(bet.multiplier)}</span>
+                        <span>Potential: ${bet.potential_win.toFixed(2)}</span>
+                      </div>
+                      
+                      {bet.status !== 'pending' && (
+                        <div className="text-xs text-muted-foreground border-t pt-2">
+                          <span>Result: {gameService.getBetResultText(bet)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {betHistoryHasMore && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMoreBetHistory}
+                      disabled={betHistoryLoading}
+                      className="w-full"
+                    >
+                      {betHistoryLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-4">
@@ -501,9 +725,72 @@ export function Canada28Game() {
                 Close
               </Button>
             </div>
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No draw history yet</p>
-            </div>
+            
+            {drawHistory.length === 0 && !drawHistoryLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No draw history yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {drawHistory.map((draw) => (
+                  <div key={draw.id} className="bg-card border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">#{draw.period_number}</span>
+                        <Badge variant={draw.status === 2 ? "default" : "secondary"} className="text-xs">
+                          {draw.status_text}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {TimeUtils.formatMessageTime(draw.draw_at)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {draw.result_numbers.map((number, index) => (
+                          <div
+                            key={index}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${gameService.getBallColor(number)}`}
+                          >
+                            {number}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-foreground">{draw.result_sum}</div>
+                        <div className="text-xs text-muted-foreground flex gap-1">
+                          <span>{gameService.getSumType(draw.result_sum)}</span>
+                          <span>•</span>
+                          <span>{gameService.getSumParity(draw.result_sum)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {drawHistoryHasMore && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMoreHistory}
+                      disabled={drawHistoryLoading}
+                      className="w-full"
+                    >
+                      {drawHistoryLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
