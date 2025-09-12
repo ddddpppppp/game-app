@@ -100,8 +100,6 @@ export class WebSocketManager {
           this.config.onDisconnect();
           
           // 如果不是主动关闭且未销毁，尝试重连
-          console.log(this.isDestroyed)
-          console.log(event.code)
           if (!this.isDestroyed && event.code !== 1000) {
             this.attemptReconnect();
           }

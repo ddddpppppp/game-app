@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { useProfile } from "@/hooks/use-profile"
 import { gameService, type BetType, type GameData, type CurrentDraw, type GroupMessage, type DrawHistory, type BetHistory } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
 import { WebSocketManager } from "@/lib/utils/websocket"
+import { DrawAnimation } from "@/components/draw-animation"
 
 // 投注分类
 const betCategories = [
@@ -55,6 +56,15 @@ export function Canada28Game() {
   // WebSocket状态
   const [wsManager, setWsManager] = useState<WebSocketManager | null>(null)
   const [wsConnected, setWsConnected] = useState(false)
+  const [wsReconnecting, setWsReconnecting] = useState(false)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  
+  // 开奖动画状态
+  const [showDrawAnimation, setShowDrawAnimation] = useState(false)
+  const [drawResult, setDrawResult] = useState<{
+    numbers: string[]
+    sum: number
+  } | null>(null)
   
   const { toast } = useToast()
   
@@ -70,14 +80,15 @@ export function Canada28Game() {
       }
       
       const data = await gameService.getCanada28Game()
-      setGameData(data)
       
-      // 设置倒计时（使用本地时间计算）
-      if (data.current_draw) {
-        const calculatedTimeLeft = TimeUtils.calculateTimeLeft(data.current_draw.end_at)
-        setTimeLeft(calculatedTimeLeft)
-        setIsDrawing(data.current_draw.status === 1) // 1表示开奖中
-      }
+              // 设置倒计时（使用本地时间计算）
+        if (data.current_draw) {
+          setIsDrawing(false)
+          const calculatedTimeLeft = TimeUtils.calculateTimeLeft(data.current_draw.end_at)
+          setTimeLeft(calculatedTimeLeft)
+          setIsDrawing(data.current_draw.status === 1) // 1表示开奖中
+          setGameData(data)
+        }
     } catch (error) {
       console.error('Failed to fetch game data:', error)
       if (!isRefresh) {
@@ -218,17 +229,16 @@ export function Canada28Game() {
           setMessages(prev => [...prev, data.data])
         }
         break
-      case 'game_update':
-        // 收到游戏更新，刷新游戏数据
-        fetchGameData(true)
-        break
       case 'draw_result':
         // 收到开奖结果
-        toast({
-          title: "开奖完成",
-          description: "新一期开奖结果已出",
-        })
-        fetchGameData(true)
+        if (data.data) {
+          setDrawResult({
+            numbers: data.data.result_numbers,
+            sum: data.data.result_sum
+          })
+          // 刷新游戏数据，重置倒计时，防止重复触发
+          fetchGameData(true)
+        }
         break
       default:
         console.log('未处理的WebSocket消息类型:', data.action)
@@ -276,21 +286,28 @@ export function Canada28Game() {
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setIsDrawing(true)
-          // 模拟开奖10秒
-          setTimeout(() => {
-            setIsDrawing(false)
-            // 重新获取游戏数据（使用刷新模式，不阻塞UI）
-            fetchGameData(true)
-          }, 10000)
-          return 0
+        setIsDrawing((currentIsDrawing) => {
+          if (prev < 1 && !currentIsDrawing) {
+            setShowDrawAnimation(true)
+            setDrawResult(null) // 重置开奖结果
+            return true
+          }
+          return currentIsDrawing
+        })
+        if (prev > 0) {
+          return prev - 1
+        } else {
+          return 210
         }
-        return prev - 1
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      console.log('清理倒计时器')
+      if (timer) {
+        clearInterval(timer)
+      }
+    }
   }, [gameData])
 
   // 清理WebSocket连接
@@ -304,6 +321,26 @@ export function Canada28Game() {
 
   const handleBack = () => {
     router.back()
+  }
+
+  // 关闭开奖动画
+  const handleDrawAnimationComplete = useCallback(() => {
+    setShowDrawAnimation(false)
+    setDrawResult(null)
+  }, [])
+
+  // 测试开奖结果 (开发环境使用)
+  const testDrawResult = () => {
+    const testData = {
+      result_numbers: ["2", "3", "0"],
+      result_sum: 5
+    }
+    console.log('手动测试开奖结果:', testData)
+    setDrawResult({
+      numbers: testData.result_numbers,
+      sum: testData.result_sum
+    })
+    setIsDrawing(false)
   }
 
   // 根据分类获取投注选项
@@ -505,7 +542,7 @@ export function Canada28Game() {
               
               return (
                 <div
-                  key={message.id}
+                  key={message.id || `${message.user_id}-${message.created_at}-${message.message.slice(0, 10)}`}
                   className={`flex gap-3 ${isMyMessage ? "justify-end" : "justify-start"}`}
                 >
                   <div
@@ -875,6 +912,15 @@ export function Canada28Game() {
           </div>
         )}
       </div>
+
+      {/* 开奖动画 */}
+      <DrawAnimation
+        isVisible={showDrawAnimation}
+        isDrawing={isDrawing}
+        resultNumbers={drawResult?.numbers}
+        resultSum={drawResult?.sum}
+        onComplete={handleDrawAnimationComplete}
+      />
     </div>
   )
 }
