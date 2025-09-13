@@ -44,8 +44,9 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
   const getWithdrawMethods = () => {
     if (!withdrawConfig) return []
 
-    const { min_amount, max_amount, fee_rate } = withdrawConfig.config
-    const feePercent = (fee_rate || 0).toFixed(1)
+    const { min_amount, max_amount, usdt_fee_rate, cashapp_fee_rate } = withdrawConfig.config
+    const usdtFeePercent = (usdt_fee_rate || 0).toFixed(1)
+    const cashappFeePercent = (cashapp_fee_rate || 0).toFixed(1)
 
     return [
       {
@@ -55,7 +56,8 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         description: "Withdraw to your CashApp account",
         minAmount: min_amount,
         maxAmount: max_amount,
-        fee: `${feePercent}%`,
+        fee: `${cashappFeePercent}%`,
+        feeRate: cashapp_fee_rate || 0,
         processingTime: "1-3 business days",
       },
       {
@@ -65,7 +67,8 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         description: "Withdraw to your USDT wallet",
         minAmount: min_amount,
         maxAmount: max_amount,
-        fee: `${feePercent}%`,
+        fee: `${usdtFeePercent}%`,
+        feeRate: usdt_fee_rate || 0,
         processingTime: "10-30 minutes",
       },
     ]
@@ -74,8 +77,10 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
   const withdrawMethods = getWithdrawMethods()
 
   const calculateFee = (amount: number) => {
-    if (!withdrawConfig || !amount) return 0
-    return amount * (withdrawConfig.config.fee_rate || 0) / 100
+    if (!withdrawConfig || !amount || !selectedMethod) return 0
+    const method = withdrawMethods.find((m) => m.id === selectedMethod)
+    if (!method) return 0
+    return amount * method.feeRate / 100
   }
 
   const calculateActualAmount = (amount: number) => {
@@ -250,7 +255,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                     <span>${Number.parseFloat(amount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Fee ({(withdrawConfig.config.fee_rate || 0).toFixed(1)}%):</span>
+                    <span>Fee ({withdrawMethods.find(m => m.id === selectedMethod)?.feeRate.toFixed(1) || 0}%):</span>
                     <span>-${calculateFee(Number.parseFloat(amount)).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t pt-2">

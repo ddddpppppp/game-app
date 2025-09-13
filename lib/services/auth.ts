@@ -119,7 +119,8 @@ export interface SystemSetting {
     max_amount: number
     usdt_gift_rate: number
     cashapp_gift_rate: number
-    fee_rate?: number
+    usdt_fee_rate?: number
+    cashapp_fee_rate?: number
     daily_limit?: number
     [key: string]: any
   }
