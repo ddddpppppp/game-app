@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,10 @@ const quickAmounts = [10, 50, 100, 500, 1000]
 export function Canada28Game() {
   const router = useRouter()
   const { user, refreshUserInfo } = useProfile()
+
+  // 滚动容器ref
+  const messagesScrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // API数据状态
   const [gameData, setGameData] = useState<GameData | null>(null)
@@ -71,6 +75,22 @@ export function Canada28Game() {
   // 获取用户余额，提供默认值防止未加载时报错
   const balance = user?.balance || 0
 
+  // 滚动到消息底部
+  const scrollToBottom = () => {
+    // 方法1：滚动到底部元素（推荐）
+    // if (messagesEndRef.current) {
+    //   messagesEndRef.current.scrollIntoView({ 
+    //     behavior: 'smooth',
+    //     block: 'end'
+    //   })
+    // }
+    
+    // 方法2：直接设置scrollTop作为备选
+    if (messagesScrollRef.current) {
+      messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight
+    }
+  }
+
     const fetchGameData = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -81,14 +101,14 @@ export function Canada28Game() {
       
       const data = await gameService.getCanada28Game()
       
-              // 设置倒计时（使用本地时间计算）
-        if (data.current_draw) {
-          setIsDrawing(false)
-          const calculatedTimeLeft = TimeUtils.calculateTimeLeft(data.current_draw.end_at)
-          setTimeLeft(calculatedTimeLeft)
-          setIsDrawing(data.current_draw.status === 1) // 1表示开奖中
-          setGameData(data)
-        }
+      // 设置倒计时（使用本地时间计算）
+      if (data.current_draw) {
+        setIsDrawing(false)
+        const calculatedTimeLeft = TimeUtils.calculateTimeLeft(data.current_draw.end_at)
+        setTimeLeft(calculatedTimeLeft)
+        setIsDrawing(data.current_draw.status === 1) // 1表示开奖中
+        setGameData(data)
+      }
     } catch (error) {
       console.error('Failed to fetch game data:', error)
       if (!isRefresh) {
@@ -319,6 +339,17 @@ export function Canada28Game() {
     }
   }, [wsManager])
 
+  // 监听消息变化，自动滚动到底部
+  useEffect(() => {
+    if (messages.length <= 50) {
+      const timer = setTimeout(() => {
+        scrollToBottom()
+      }, 200)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [messages])
+
   const handleBack = () => {
     router.back()
   }
@@ -534,7 +565,11 @@ export function Canada28Game() {
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-hidden pb-32">
-        <ScrollArea className="h-full px-4 py-4">
+        <div 
+          ref={messagesScrollRef}
+          className="h-full px-4 py-4 overflow-y-auto scroll-smooth"
+          style={{ maxHeight: 'calc(100vh - 200px)' }}
+        >
           <div className="space-y-4">
             {messages.map((message) => {
               const isMyMessage = gameService.isMyMessage(message, user?.uuid || '')
@@ -582,8 +617,10 @@ export function Canada28Game() {
                 </div>
               )
             })}
+            {/* 底部滚动目标元素 */}
+            {/* <div ref={messagesEndRef} /> */}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Bottom Interface */}
