@@ -2,14 +2,21 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth-provider"
 
 export default function RootPage() {
   const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuth()
 
   useEffect(() => {
-    // Redirect to home page
-    router.replace("/home")
-  }, [router])
+    if (!isLoading) {
+      if (isAuthenticated) {
+        router.replace("/home")
+      } else {
+        router.replace("/login")
+      }
+    }
+  }, [router, isAuthenticated, isLoading])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

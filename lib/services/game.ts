@@ -112,6 +112,12 @@ class GameService {
     return response.data
   }
 
+  // 获取Canada28当前期数信息（仅获取倒计时数据）
+  async getCanada28GameCurrentDraw(): Promise<{ current_draw: CurrentDraw }> {
+    const response = await api.post('/api/game/getCanada28GameCurrentDraw')
+    return response.data
+  }
+
   // 获取Canada28群组消息
   async getCanada28Messages(): Promise<MessagesData> {
     const response = await api.post('/api/game/getCanada28Messages')

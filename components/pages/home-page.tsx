@@ -3,7 +3,10 @@
 import { GameCarousel } from "@/components/game-carousel"
 import { GameGrid } from "@/components/game-grid"
 
+import { useProfile } from "@/hooks/use-profile"
+
 export function HomePage() {
+  const { user } = useProfile()
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -16,7 +19,7 @@ export function HomePage() {
           <div className="flex items-center gap-2">
             <div className="text-right">
               <p className="text-xs text-muted-on-card">Balance</p>
-              <p className="text-sm font-semibold text-accent">$1,234.56</p>
+              <p className="text-sm font-semibold text-accent">${user?.balance}</p>
             </div>
           </div>
         </div>

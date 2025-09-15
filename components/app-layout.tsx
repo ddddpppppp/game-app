@@ -12,12 +12,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname === "/login" || pathname === "/register"
 
   if (!isAuthenticated || isAuthPage) {
-    return <>{children}</>
+    return (
+      <div className="min-h-screen bg-background transition-all duration-300 ease-in-out">
+        {children}
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="pb-20">{children}</main>
+    <div className="min-h-screen bg-background transition-all duration-300 ease-in-out">
+      <main className="pb-20 transition-all duration-200 ease-in-out">
+        {children}
+      </main>
       <BottomNav />
     </div>
   )

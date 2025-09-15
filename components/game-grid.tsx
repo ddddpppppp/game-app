@@ -5,16 +5,68 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Star, Users, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { gameService, type CurrentDraw } from "@/lib/services/game"
+import { TimeUtils } from "@/lib/utils/time"
 
 interface Game {
   id: string
   name: string
   category: string
-  image: string
+  image?: string
   rating: number
   players: string
   isHot?: boolean
   isNew?: boolean
+}
+
+// 倒计时组件
+function CountdownDisplay({ endAt }: { endAt: string | null }) {
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  useEffect(() => {
+    if (!endAt) return
+
+    // 初始计算
+    const initialTimeLeft = TimeUtils.calculateTimeLeft(endAt)
+    setTimeLeft(initialTimeLeft)
+
+    // 每秒更新倒计时
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        const newTimeLeft = Math.max(0, prev - 1)
+        return newTimeLeft
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [endAt])
+
+  if (!endAt) {
+    return (
+      <div className="w-full h-24 bg-muted flex items-center justify-center">
+        <span className="text-muted-foreground text-sm">Loading...</span>
+      </div>
+    )
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div className="w-full h-24 bg-gradient-to-br from-blue-500 to-purple-600 flex flex-col items-center justify-center text-white">
+      <div className="text-xs opacity-80 mb-1">Next Draw Countdown</div>
+      <div className="text-2xl font-mono font-bold tracking-wider">
+        {formatTime(timeLeft)}
+      </div>
+      <div className="text-xs opacity-80 mt-1">
+        {timeLeft > 0 ? "Betting Open" : "Drawing..."}
+      </div>
+    </div>
+  )
 }
 
 const mockGames: Game[] = [
@@ -22,7 +74,6 @@ const mockGames: Game[] = [
     id: "canada28",
     name: "Keno",
     category: "Number Games",
-    image: "/canada-28-lottery-numbers-game.jpg",
     rating: 4.7,
     players: "9.2K",
     isHot: true,
@@ -31,6 +82,28 @@ const mockGames: Game[] = [
 
 export function GameGrid() {
   const router = useRouter()
+  const [currentDraw, setCurrentDraw] = useState<CurrentDraw | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // 获取当前期数信息
+  useEffect(() => {
+    const fetchCurrentDraw = async () => {
+      try {
+        const data = await gameService.getCanada28GameCurrentDraw()
+        setCurrentDraw(data.current_draw)
+      } catch (error) {
+        console.error('Failed to fetch current draw:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCurrentDraw()
+    
+    // 每30秒刷新一次数据
+    const interval = setInterval(fetchCurrentDraw, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleGameSelect = (gameId: string) => {
     if (gameId === "canada28") {
@@ -55,7 +128,8 @@ export function GameGrid() {
           <Card key={game.id} className="overflow-hidden hover:shadow-lg transition-shadow py-0 rounded-sm">
             <CardContent className="p-0">
               <div className="relative">
-                <img src={game.image || "/placeholder.svg"} alt={game.name} className="w-full h-24 object-cover" />
+                {/* 替换图片为倒计时 */}
+                <CountdownDisplay endAt={currentDraw?.end_at || null} />
                 <div className="absolute top-2 left-2 flex gap-1">
                   {game.isHot && (
                     <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
@@ -118,7 +192,7 @@ export function GameGrid() {
                   }}
                   onClick={() => handleGameSelect(game.id)}
                 >
-                  Play Now
+                  Bet Now
                 </span>
               </div>
             </CardContent>

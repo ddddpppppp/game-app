@@ -3,6 +3,7 @@
 import { Home, Wallet, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter, usePathname } from "next/navigation"
+import { useCallback } from "react"
 
 export function BottomNav() {
   const router = useRouter()
@@ -24,6 +25,13 @@ export function BottomNav() {
 
   const activeTab = getActiveTab()
 
+  // 优化路由导航，使用 useCallback 避免重复渲染
+  const handleNavigation = useCallback((path: string) => {
+    if (pathname !== path) {
+      router.push(path)
+    }
+  }, [router, pathname])
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
       <div className="flex items-center justify-around py-2">
@@ -34,10 +42,12 @@ export function BottomNav() {
           return (
             <button
               key={tab.id}
-              onClick={() => router.push(tab.path)}
+              onClick={() => handleNavigation(tab.path)}
               className={cn(
-                "flex flex-row items-center gap-2 px-4 py-2 rounded-lg transition-colors",
-                isActive ? "text-white bg-accent" : "text-card-foreground hover:text-accent",
+                "flex flex-row items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ease-in-out",
+                isActive 
+                  ? "text-white bg-accent scale-105" 
+                  : "text-card-foreground hover:text-accent hover:bg-accent/10 active:scale-95",
               )}
             >
               <Icon className="h-5 w-5" />

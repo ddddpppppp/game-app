@@ -27,6 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
+      if (hasInitialized) {
+        setIsLoading(false)
+        return
+      }
+
       try {
         // 检查本地存储中的 token
         const token = localStorage.getItem('token')
@@ -39,62 +44,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false)
           setHasInitialized(true)
           
-          // 重定向到登录页（除非已经在登录或注册页）
-          if (pathname !== "/login" && pathname !== "/register" && pathname !== "/forgot-password") {
+          // 只在非公开页面时重定向到登录页
+          const publicPages = ["/login", "/register", "/forgot-password"]
+          if (!publicPages.includes(pathname)) {
             router.replace("/login")
           }
           return
         }
 
-        // 有 token，首先使用本地存储的用户信息
+        // 有 token，使用本地存储的用户信息快速加载
         if (storedUser) {
           try {
             const userInfo = JSON.parse(storedUser)
             setIsAuthenticated(true)
             setUser(userInfo)
+            setIsLoading(false)
           } catch (error) {
             console.error('Failed to parse stored user info:', error)
-            // 如果解析失败，清除存储
             localStorage.removeItem('user')
           }
         }
         
-        // 只有在应用初始化时才调用API验证token
-        if (!hasInitialized) {
-          try {
-            const response = await authService.getUserInfo()
-            setIsAuthenticated(true)
-            setUser(response.user)
-            
-            // 更新本地存储的用户信息
-            localStorage.setItem('user', JSON.stringify(response.user))
-          } catch (error) {
-            // token 无效或过期
-            console.error('Token validation failed:', error)
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-            setIsAuthenticated(false)
-            setUser(null)
-            
-            // 重定向到登录页
-            if (pathname !== "/login" && pathname !== "/register" && pathname !== "/forgot-password") {
-              router.replace("/login")
-              toast({
-                title: "Session Expired",
-                description: "Please log in again",
-                variant: "destructive",
-              })
-            }
+        // 在后台验证token有效性（不阻塞UI）
+        try {
+          const response = await authService.getUserInfo()
+          setIsAuthenticated(true)
+          setUser(response.user)
+          
+          // 更新本地存储的用户信息
+          localStorage.setItem('user', JSON.stringify(response.user))
+        } catch (error) {
+          // token 无效或过期
+          console.error('Token validation failed:', error)
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setIsAuthenticated(false)
+          setUser(null)
+          
+          // 重定向到登录页
+          const publicPages = ["/login", "/register", "/forgot-password"]
+          if (!publicPages.includes(pathname)) {
+            router.replace("/login")
+            toast({
+              title: "Session Expired",
+              description: "Please log in again",
+              variant: "destructive",
+            })
           }
-          setHasInitialized(true)
         }
         
+        setHasInitialized(true)
         setIsLoading(false)
         
-        // 处理路由重定向
-        if (token && (isAuthenticated || !hasInitialized)) {
-          // 如果在登录或注册页，重定向到首页
-          if (pathname === "/login" || pathname === "/register" || pathname === "/" || pathname === "/forgot-password") {
+        // 处理登录后的路由重定向
+        if (token && isAuthenticated) {
+          const authPages = ["/login", "/register", "/", "/forgot-password"]
+          if (authPages.includes(pathname)) {
             router.replace("/home")
           }
         }
@@ -102,17 +107,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Auth initialization error:', error)
         setIsAuthenticated(false)
         setUser(null)
-        
-        if (pathname !== "/login" && pathname !== "/register" && pathname !== "/forgot-password") {
-          router.replace("/login")
-        }
         setIsLoading(false)
         setHasInitialized(true)
+        
+        const publicPages = ["/login", "/register", "/forgot-password"]
+        if (!publicPages.includes(pathname)) {
+          router.replace("/login")
+        }
       }
     }
 
     checkAuth()
-  }, [pathname, router, toast, hasInitialized])
+  }, [pathname, router, toast, hasInitialized, isAuthenticated])
 
   const login = (token: string, userData: User) => {
     localStorage.setItem('token', token)
@@ -134,12 +140,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error)
     }
     
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setIsAuthenticated(false)
     setUser(null)
     router.replace("/login")
   }
 
-  if (isLoading) {
+  // 简化加载状态显示
+  if (isLoading && !hasInitialized) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
