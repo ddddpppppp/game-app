@@ -380,11 +380,25 @@ export function Canada28Game() {
     return gameService.getBetTypesByCategory(gameData.bet_types, category)
   }
 
+  // 检查是否可以下注（30秒内停止下注）
+  const canPlaceBet = () => {
+    return timeLeft > 30 && !isDrawing
+  }
+
   const handlePlaceBet = async () => {
     if (isDrawing) {
       toast({
         title: "Drawing in Progress",
         description: "Please wait for the current draw to complete.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (timeLeft <= 30) {
+      toast({
+        title: "Betting Closed",
+        description: "Betting is closed 30 seconds before the draw.",
         variant: "destructive",
       })
       return
@@ -664,12 +678,21 @@ export function Canada28Game() {
                   </Button>
                 </div>
                 
+                {/* Betting Status */}
+                {timeLeft <= 30 && !isDrawing && (
+                  <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                    <p className="text-sm font-medium text-orange-800">
+                      🚫 Betting is closed 30 seconds before the draw
+                    </p>
+                  </div>
+                )}
+                
                 {/* Basic Bets */}
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-foreground mb-2">Basic Bets</h4>
                   <div className="grid grid-cols-4 gap-2">
                     {getBetsByCategory("basic").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
                       return (
                         <Button
                           key={bet.id}
@@ -701,7 +724,7 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">Combination Bets</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {getBetsByCategory("combination").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
                       return (
                         <Button
                           key={bet.id}
@@ -733,7 +756,7 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">Special Bets</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {getBetsByCategory("special").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
                       return (
                         <Button
                           key={bet.id}
@@ -765,7 +788,12 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">The Sum</h4>
                   <Button
                     variant="outline"
-                    className="w-full h-auto min-h-[50px] p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
+                    disabled={!canPlaceBet()}
+                    className={`w-full h-auto min-h-[50px] p-3 flex flex-col justify-center items-center text-center ${
+                      canPlaceBet() 
+                        ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                        : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                    }`}
                     onClick={() => setSelectedCategory("sum")}
                   >
                     <span className="text-2xl mb-1">🔢</span>
@@ -784,7 +812,7 @@ export function Canada28Game() {
                 
                 <div className="grid grid-cols-4 gap-2 p-2 max-h-80 overflow-y-auto">
                   {getBetsByCategory("sum").map((bet) => {
-                    const isEnabled = gameService.isBetTypeEnabled(bet)
+                    const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
                     return (
                       <Button
                         key={bet.id}
@@ -830,6 +858,15 @@ export function Canada28Game() {
                   </Button>
                 </div>
 
+                {/* Betting Status */}
+                {timeLeft <= 30 && !isDrawing && (
+                  <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                    <p className="text-sm font-medium text-orange-800">
+                      🚫 Betting is closed 30 seconds before the draw
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <div className="flex gap-2">
                     {quickAmounts.map((amount) => (
@@ -856,9 +893,9 @@ export function Canada28Game() {
                     <Button 
                       onClick={handlePlaceBet} 
                       className="px-6" 
-                      disabled={isDrawing || betting}
+                      disabled={isDrawing || betting || !canPlaceBet()}
                     >
-                      {betting ? "Betting..." : isDrawing ? "Drawing..." : "Bet"}
+                      {betting ? "Betting..." : isDrawing ? "Drawing..." : timeLeft <= 30 ? "Betting Closed" : "Bet"}
                     </Button>
                   </div>
 
