@@ -435,7 +435,9 @@ export function Canada28Game() {
       // Reset bet selection
       setSelectedBetType(null)
       setBetAmount("")
-      setSelectedCategory(null)
+      if (selectedCategory === "sum") {
+        setSelectedCategory(null)
+      }
 
       toast({
         title: "Bet Placed Successfully!",
@@ -564,11 +566,11 @@ export function Canada28Game() {
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-hidden pb-32">
+      <div className="flex-1 overflow-hidden pb-0">
         <div 
           ref={messagesScrollRef}
           className="h-full px-4 py-4 overflow-y-auto scroll-smooth"
-          style={{ maxHeight: 'calc(100vh - 200px)' }}
+          style={{ maxHeight: 'calc(100vh)' }}
         >
           <div className="space-y-4">
             {messages.map((message) => {
@@ -653,48 +655,142 @@ export function Canada28Game() {
           </div>
         ) : activeTab === "bet" ? (
           <div className="p-4 space-y-4">
-            {!selectedCategory ? (
-              <div>
+            {!selectedBetType && !selectedCategory ? (
+              <div className="max-h-[60vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">Select Bet Category</h3>
+                  <h3 className="font-semibold text-foreground">Place Your Bet</h3>
                   <Button variant="ghost" size="sm" onClick={() => setActiveTab(null)} className="text-foreground">
                     Close
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-3 p-2">
-                  {betCategories.map((category) => (
-                    <Button
-                      key={category.id}
-                      variant="outline"
-                      className="h-auto min-h-[80px] p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
-                      onClick={() => setSelectedCategory(category.id)}
-                    >
-                      <span className="text-2xl mb-2">{category.icon}</span>
-                      <span className="font-bold text-xs leading-tight">{category.name}</span>
-                    </Button>
-                  ))}
+                
+                {/* Basic Bets */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Basic Bets</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    {getBetsByCategory("basic").map((bet) => {
+                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      return (
+                        <Button
+                          key={bet.id}
+                          variant="outline"
+                          disabled={!isEnabled}
+                          className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
+                            isEnabled 
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                              : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                          }`}
+                          onClick={() => {
+                            if (isEnabled) {
+                              setSelectedBetType(bet)
+                            }
+                          }}
+                        >
+                          <span className="font-bold text-xs break-words">{bet.type_name}</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {gameService.formatOdds(bet.odds)}
+                          </span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Combination Bets */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Combination Bets</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getBetsByCategory("combination").map((bet) => {
+                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      return (
+                        <Button
+                          key={bet.id}
+                          variant="outline"
+                          disabled={!isEnabled}
+                          className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
+                            isEnabled 
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                              : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                          }`}
+                          onClick={() => {
+                            if (isEnabled) {
+                              setSelectedBetType(bet)
+                            }
+                          }}
+                        >
+                          <span className="font-bold text-xs break-words">{bet.type_name}</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {gameService.formatOdds(bet.odds)}
+                          </span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Special Bets */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Special Bets</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getBetsByCategory("special").map((bet) => {
+                      const isEnabled = gameService.isBetTypeEnabled(bet)
+                      return (
+                        <Button
+                          key={bet.id}
+                          variant="outline"
+                          disabled={!isEnabled}
+                          className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
+                            isEnabled 
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                              : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                          }`}
+                          onClick={() => {
+                            if (isEnabled) {
+                              setSelectedBetType(bet)
+                            }
+                          }}
+                        >
+                          <span className="font-bold text-xs break-words">{bet.type_name}</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {gameService.formatOdds(bet.odds)}
+                          </span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* The Sum - 需要点击进入 */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-foreground mb-2">The Sum</h4>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto min-h-[50px] p-3 bg-card text-foreground hover:bg-accent hover:text-accent-foreground flex flex-col justify-center items-center text-center"
+                    onClick={() => setSelectedCategory("sum")}
+                  >
+                    <span className="text-2xl mb-1">🔢</span>
+                    <span className="font-bold text-xs">Select Sum (0-27)</span>
+                  </Button>
                 </div>
               </div>
-            ) : !selectedBetType ? (
+            ) : selectedCategory === "sum" && !selectedBetType ? (
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">
-                    {betCategories.find((c) => c.id === selectedCategory)?.name}
-                  </h3>
+                  <h3 className="font-semibold text-foreground">The Sum (0-27)</h3>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedCategory(null)} className="text-foreground">
                     Back
                   </Button>
                 </div>
                 
-                <div className={selectedCategory === "sum" ? "grid grid-cols-4 gap-2 p-2" : "grid grid-cols-2 gap-2 p-2"}>
-                  {getBetsByCategory(selectedCategory).map((bet) => {
+                <div className="grid grid-cols-4 gap-2 p-2 max-h-80 overflow-y-auto">
+                  {getBetsByCategory("sum").map((bet) => {
                     const isEnabled = gameService.isBetTypeEnabled(bet)
                     return (
                       <Button
                         key={bet.id}
                         variant="outline"
                         disabled={!isEnabled}
-                        className={`h-auto min-h-[50px] p-2 flex flex-col justify-center items-center text-center ${
+                        className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
                           isEnabled 
                             ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
                             : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
@@ -709,26 +805,25 @@ export function Canada28Game() {
                     )
                   })}
                 </div>
-                
-                {getBetsByCategory(selectedCategory).length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No bet types available for this category</p>
-                  </div>
-                )}
               </div>
-            ) : (
+                        ) : (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Multiplier: {gameService.formatOdds(selectedBetType.odds)}
+                      Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ''}
                     </p>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedBetType(null)}
+                    onClick={() => {
+                      setSelectedBetType(null)
+                      if (selectedCategory === "sum") {
+                        setSelectedCategory(null)
+                      }
+                    }}
                     className="text-foreground"
                   >
                     Back
