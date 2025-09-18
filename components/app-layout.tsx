@@ -10,8 +10,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   const isAuthPage = pathname === "/login" || pathname === "/register"
+  const isPublicPageWithNav = pathname === "/home" || pathname.startsWith("/games/")
 
-  if (!isAuthenticated || isAuthPage) {
+  if (isAuthPage) {
     return (
       <div className="min-h-screen bg-background transition-all duration-300 ease-in-out">
         {children}
@@ -19,12 +20,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // 对于首页和游戏页面，无论是否登录都显示导航栏
+  if (isAuthenticated || isPublicPageWithNav) {
+    return (
+      <div className="min-h-screen bg-background transition-all duration-300 ease-in-out">
+        <main className="pb-20 transition-all duration-200 ease-in-out">
+          {children}
+        </main>
+        <BottomNav />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background transition-all duration-300 ease-in-out">
-      <main className="pb-20 transition-all duration-200 ease-in-out">
-        {children}
-      </main>
-      <BottomNav />
+      {children}
     </div>
   )
 }

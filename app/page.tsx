@@ -1,16 +1,16 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 
 export default function RootPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuth()
-
+  const pathname = usePathname()
   useEffect(() => {
     if (!isLoading) {
-      if (isAuthenticated) {
+      if (isAuthenticated || pathname === "/") {
         router.replace("/home")
       } else {
         router.replace("/login")

@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ArrowLeft, Info, Bot, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth-provider"
 import { useProfile } from "@/hooks/use-profile"
 import { gameService, type BetType, type GameData, type CurrentDraw, type GroupMessage, type DrawHistory, type BetHistory } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
@@ -27,6 +28,7 @@ const quickAmounts = [10, 50, 100, 500, 1000]
 
 export function Canada28Game() {
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
   const { user, refreshUserInfo } = useProfile()
 
   // 滚动容器ref
@@ -50,6 +52,7 @@ export function Canada28Game() {
   const [selectedBetType, setSelectedBetType] = useState<BetType | null>(null)
   const [betAmount, setBetAmount] = useState("")
   const [showRules, setShowRules] = useState(false)
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   
@@ -73,7 +76,7 @@ export function Canada28Game() {
   const { toast } = useToast()
   
   // 获取用户余额，提供默认值防止未加载时报错
-  const balance = user?.balance || 0
+  const balance = isAuthenticated && user ? user.balance : 0
 
   // 滚动到消息底部
   const scrollToBottom = () => {
@@ -275,9 +278,7 @@ export function Canada28Game() {
         ])
         
         // 数据加载完成后初始化WebSocket
-        if (user) {
-          initializeWebSocket()
-        }
+        initializeWebSocket()
       } catch (error) {
         console.error('Failed to initialize data:', error)
       }
@@ -438,8 +439,10 @@ export function Canada28Game() {
       // 调用投注API
       const result = await gameService.placeCanada28Bet(selectedBetType.id, amount)
       
-      // 刷新用户信息以更新余额
-      refreshUserInfo().catch(console.error)
+      // 刷新用户信息以更新余额（仅当已登录时）
+      if (isAuthenticated) {
+        refreshUserInfo().catch(console.error)
+      }
 
       // 如果当前在投注历史页面，刷新投注历史
       if (activeTab === "bet-history") {
@@ -470,7 +473,7 @@ export function Canada28Game() {
     }
   }
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -588,7 +591,7 @@ export function Canada28Game() {
         >
           <div className="space-y-4">
             {messages.map((message) => {
-              const isMyMessage = gameService.isMyMessage(message, user?.uuid || '')
+              const isMyMessage = isAuthenticated && user ? gameService.isMyMessage(message, user.uuid) : false
               const isBotMessage = gameService.isBotMessage(message)
               
               return (
@@ -647,14 +650,26 @@ export function Canada28Game() {
               <Button
                 variant="outline"
                 className="h-12 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
-                onClick={() => setActiveTab("bet")}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    setShowLoginDialog(true)
+                  } else {
+                    setActiveTab("bet")
+                  }
+                }}
               >
                 Bet
               </Button>
               <Button
                 variant="outline"
                 className="h-12 bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
-                onClick={() => setActiveTab("bet-history")}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    setShowLoginDialog(true)
+                  } else {
+                    setActiveTab("bet-history")
+                  }
+                }}
               >
                 Bet History
               </Button>
@@ -1090,6 +1105,41 @@ export function Canada28Game() {
         resultSum={drawResult?.sum}
         onComplete={handleDrawAnimationComplete}
       />
+
+      {/* 登录对话框 */}
+      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <DialogContent className="max-w-[90vw] w-full max-h-[80vh] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Login Required</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You need to log in to access betting features and view your history.
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  setShowLoginDialog(false)
+                  router.push("/login")
+                }}
+                className="flex-1"
+              >
+                Login
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowLoginDialog(false)
+                  router.push("/register")
+                }}
+                className="flex-1"
+              >
+                Register
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

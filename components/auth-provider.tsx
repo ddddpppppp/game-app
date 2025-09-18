@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
 
   // 缓存公开页面路径，避免每次重新计算
-  const publicPages = ["/login", "/register", "/forgot-password"]
-  const authPages = ["/login", "/register", "/", "/forgot-password"]
+  const publicPages = ["/login", "/register", "/forgot-password", "/home", "/games/canada28", "/"]
+  const authPages = ["/login", "/register", "/forgot-password"]
 
   // 优化路由重定向，使用useCallback缓存函数
   const redirectToLogin = useCallback(() => {
@@ -37,12 +37,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname, router])
 
   const redirectToHome = useCallback(() => {
-    if (authPages.includes(pathname)) {
+    if (authPages.includes(pathname) || pathname === "/") {
       router.replace("/home")
     }
   }, [pathname, router])
 
   useEffect(() => {
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      // 没有 token，未登录状态
+      setIsAuthenticated(false)
+      setUser(null)
+      setIsLoading(false)
+      setHasInitialized(true)
+      // 根路径重定向到首页，其他非公开页面重定向到登录页
+      if (pathname === "/") {
+        router.replace("/home")
+      } else if (!publicPages.includes(pathname)) {
+        redirectToLogin()
+      }
+      return
+    }
     // 避免重复初始化
     if (hasInitialized) {
       return
@@ -51,18 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       try {
         // 检查本地存储中的 token
-        const token = localStorage.getItem('token')
         const storedUser = localStorage.getItem('user')
         
-        if (!token) {
-          // 没有 token，未登录状态
-          setIsAuthenticated(false)
-          setUser(null)
-          setIsLoading(false)
-          setHasInitialized(true)
-          redirectToLogin()
-          return
-        }
 
         // 有 token，使用本地存储的用户信息快速加载
         if (storedUser) {
@@ -114,7 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
         setIsLoading(false)
         setHasInitialized(true)
-        redirectToLogin()
+        // 根路径重定向到首页，其他非公开页面重定向到登录页
+        if (pathname === "/") {
+          router.replace("/home")
+        } else if (!publicPages.includes(pathname)) {
+          redirectToLogin()
+        }
       }
     }
 
