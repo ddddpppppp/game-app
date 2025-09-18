@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { authService, type User } from "@/lib/services/auth"
 import { useToast } from "@/hooks/use-toast"
@@ -25,13 +25,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { toast } = useToast()
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (hasInitialized) {
-        setIsLoading(false)
-        return
-      }
+  // 缓存公开页面路径，避免每次重新计算
+  const publicPages = ["/login", "/register", "/forgot-password"]
+  const authPages = ["/login", "/register", "/", "/forgot-password"]
 
+  // 优化路由重定向，使用useCallback缓存函数
+  const redirectToLogin = useCallback(() => {
+    if (!publicPages.includes(pathname)) {
+      router.replace("/login")
+    }
+  }, [pathname, router])
+
+  const redirectToHome = useCallback(() => {
+    if (authPages.includes(pathname)) {
+      router.replace("/home")
+    }
+  }, [pathname, router])
+
+  useEffect(() => {
+    // 避免重复初始化
+    if (hasInitialized) {
+      return
+    }
+
+    const checkAuth = async () => {
       try {
         // 检查本地存储中的 token
         const token = localStorage.getItem('token')
@@ -43,12 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null)
           setIsLoading(false)
           setHasInitialized(true)
-          
-          // 只在非公开页面时重定向到登录页
-          const publicPages = ["/login", "/register", "/forgot-password"]
-          if (!publicPages.includes(pathname)) {
-            router.replace("/login")
-          }
+          redirectToLogin()
           return
         }
 
@@ -59,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsAuthenticated(true)
             setUser(userInfo)
             setIsLoading(false)
+            setHasInitialized(true)
+            redirectToHome()
           } catch (error) {
             console.error('Failed to parse stored user info:', error)
             localStorage.removeItem('user')
@@ -81,10 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(false)
           setUser(null)
           
-          // 重定向到登录页
-          const publicPages = ["/login", "/register", "/forgot-password"]
+          // 只在非公开页面显示错误提示
           if (!publicPages.includes(pathname)) {
-            router.replace("/login")
+            redirectToLogin()
             toast({
               title: "Session Expired",
               description: "Please log in again",
@@ -95,45 +108,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setHasInitialized(true)
         setIsLoading(false)
-        
-        // 处理登录后的路由重定向
-        if (token && isAuthenticated) {
-          const authPages = ["/login", "/register", "/", "/forgot-password"]
-          if (authPages.includes(pathname)) {
-            router.replace("/home")
-          }
-        }
       } catch (error) {
         console.error('Auth initialization error:', error)
         setIsAuthenticated(false)
         setUser(null)
         setIsLoading(false)
         setHasInitialized(true)
-        
-        const publicPages = ["/login", "/register", "/forgot-password"]
-        if (!publicPages.includes(pathname)) {
-          router.replace("/login")
-        }
+        redirectToLogin()
       }
     }
 
     checkAuth()
-  }, [pathname, router, toast, hasInitialized, isAuthenticated])
+  }, [redirectToLogin, redirectToHome, toast, hasInitialized, pathname])
 
-  const login = (token: string, userData: User) => {
+  const login = useCallback((token: string, userData: User) => {
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(userData))
     setIsAuthenticated(true)
     setUser(userData)
     router.replace("/home")
-  }
+  }, [router])
 
-  const resetUser = (userData: User) => {
+  const resetUser = useCallback((userData: User) => {
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
-  }
+  }, [])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authService.logout()
     } catch (error) {
@@ -145,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false)
     setUser(null)
     router.replace("/login")
-  }
+  }, [router])
 
   // 简化加载状态显示
   if (isLoading && !hasInitialized) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { authService, EditUserInfoRequest, ChangePasswordRequest } from '@/lib/services/auth'
 import { apiService } from '@/lib/services/api'
 import { useAuth } from '@/components/auth-provider'
@@ -11,7 +11,7 @@ export function useProfile() {
   const { user, login, resetUser } = useAuth()
   const { toast } = useToast()
 
-  const refreshUserInfo = async () => {
+  const refreshUserInfo = useCallback(async () => {
     setIsRefreshing(true)
     try {
       const response = await authService.getUserInfo()
@@ -31,13 +31,16 @@ export function useProfile() {
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [resetUser, toast])
 
   // 修改用户信息（昵称和头像）
-  const updateUserInfo = async (data: EditUserInfoRequest) => {
+  const updateUserInfo = useCallback(async (data: EditUserInfoRequest) => {
     setIsUpdating(true)
     try {
       const response = await authService.editUserInfo(data)
+      
+      // 立即更新本地用户信息，避免需要重新获取
+      resetUser(response.user)
       
       toast({
         title: "Success",
@@ -56,10 +59,10 @@ export function useProfile() {
     } finally {
       setIsUpdating(false)
     }
-  }
+  }, [resetUser, toast])
 
   // 修改密码
-  const changePassword = async (data: ChangePasswordRequest) => {
+  const changePassword = useCallback(async (data: ChangePasswordRequest) => {
     setIsUpdating(true)
     try {
       const response = await authService.changePassword(data)
@@ -81,10 +84,10 @@ export function useProfile() {
     } finally {
       setIsUpdating(false)
     }
-  }
+  }, [toast])
 
   // 上传文件
-  const uploadFile = async (file: File) => {
+  const uploadFile = useCallback(async (file: File) => {
     setIsUploading(true)
     try {
       const response = await apiService.uploadFile(file)
@@ -100,14 +103,7 @@ export function useProfile() {
     } finally {
       setIsUploading(false)
     }
-  }
-
-  // 在profile页面加载时自动刷新用户信息
-  useEffect(() => {
-    refreshUserInfo().catch(() => {
-      // 错误已在refreshUserInfo中处理
-    })
-  }, []) // 只在组件挂载时执行一次
+  }, [toast])
 
   return {
     user,
