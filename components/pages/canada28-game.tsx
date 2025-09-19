@@ -43,7 +43,7 @@ export function Canada28Game() {
 
   // 滚动容器ref
   const messagesScrollRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
   // API数据状态
   const [gameData, setGameData] = useState<GameData | null>(null)
@@ -83,25 +83,67 @@ export function Canada28Game() {
   // 新增的动画状态
   const [animatingNumbers, setAnimatingNumbers] = useState<string[]>(["", "", ""])
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // 倒计时提醒状态
+  const [isTimeWarning, setIsTimeWarning] = useState(false)
+  const [isTimeCritical, setIsTimeCritical] = useState(false)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
-  const { toast } = useToast()
+    const { toast } = useToast()
+  
+  // 初始化音频上下文（减少延迟）
+  const initAudioContext = () => {
+    if (!audioContextRef.current) {
+      try {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      } catch (error) {
+        console.warn('Audio context creation failed:', error)
+      }
+    }
+  }
 
+  // 播放警告声音（优化版本）
+  const playWarningSound = () => {
+    try {
+      if (!audioContextRef.current) {
+        initAudioContext()
+      }
+      
+      const audioContext = audioContextRef.current
+      if (!audioContext) return
+
+      // 如果音频上下文被挂起，恢复它
+      if (audioContext.state === 'suspended') {
+        audioContext.resume()
+      }
+
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime) // 800Hz 提示音
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime) // 稍微增加音量
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15) // 缩短时间
+      
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.15) // 更短的声音
+    } catch (error) {
+      console.warn('Audio playback failed:', error)
+    }
+  }
+  
   // 获取用户余额，提供默认值防止未加载时报错
   const balance = isAuthenticated && user ? user.balance : 0
 
   // 滚动到消息底部
   const scrollToBottom = () => {
-    // 方法1：滚动到底部元素（推荐）
-    // if (messagesEndRef.current) {
-    //   messagesEndRef.current.scrollIntoView({
-    //     behavior: 'smooth',
-    //     block: 'end'
-    //   })
-    // }
-
-    // 方法2：直接设置scrollTop作为备选
     if (messagesScrollRef.current) {
       messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight
+    }
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight + 400
     }
   }
 
@@ -296,6 +338,15 @@ export function Canada28Game() {
 
         // 数据加载完成后初始化WebSocket
         initializeWebSocket()
+        
+        // 预初始化音频上下文（在用户交互后）
+        const handleFirstInteraction = () => {
+          initAudioContext()
+          document.removeEventListener('click', handleFirstInteraction)
+          document.removeEventListener('touchstart', handleFirstInteraction)
+        }
+        document.addEventListener('click', handleFirstInteraction)
+        document.addEventListener('touchstart', handleFirstInteraction)
       } catch (error) {
         console.error("Failed to initialize data:", error)
       }
@@ -330,6 +381,21 @@ export function Canada28Game() {
           }
           return currentIsDrawing
         })
+        
+        // 倒计时提醒逻辑
+        if (prev === 33 || prev === 6 || prev === 5 || prev === 4) {
+          playWarningSound()
+        }
+        if (prev === 31) {
+          // 30秒警告 - 立即触发
+          setIsTimeWarning(true)
+          setTimeout(() => setIsTimeWarning(false), 1000)
+        } else if (prev <= 4 && prev > 0) {
+          // 最后3秒严重警告 - 立即触发
+          setIsTimeCritical(true)
+          setTimeout(() => setIsTimeCritical(false), 800)
+        }
+        
         if (prev > 0) {
           return prev - 1
         } else {
@@ -379,10 +445,10 @@ export function Canada28Game() {
 
   // 监听消息变化，自动滚动到底部
   useEffect(() => {
-    if (messages.length <= 50) {
+    if (messages.length <= 51) {
       const timer = setTimeout(() => {
         scrollToBottom()
-      }, 200)
+      }, 300)
 
       return () => clearTimeout(timer)
     }
@@ -514,8 +580,18 @@ export function Canada28Game() {
   const currentPeriod = gameData.current_draw?.period_number || "N/A"
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white p-4 z-30 shadow-lg">
+    <div ref={bodyRef} className="min-h-screen bg-background relative">
+      <style jsx>{`
+        @keyframes spin-slot {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-640px); }
+        }
+        .animate-spin-slot {
+          animation: spin-slot 1.2s linear infinite;
+        }
+
+      `}</style>
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-purple-400 to-purple-500 text-white p-4 z-30 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <Button
@@ -539,7 +615,13 @@ export function Canada28Game() {
                 .map((part, index) => (
                   <div
                     key={index}
-                    className="w-8 h-8 bg-white/20 rounded flex items-center justify-center text-sm font-bold"
+                    className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all duration-200 ${
+                      isTimeCritical 
+                        ? "bg-red-500 text-white animate-pulse" 
+                        : isTimeWarning 
+                        ? "bg-orange-400 text-white animate-pulse" 
+                        : "bg-white/20"
+                    }`}
                   >
                     {isDrawing ? "--" : part}
                   </div>
@@ -555,36 +637,55 @@ export function Canada28Game() {
                 Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
               </span>
               <div className="flex gap-2 ml-3">
-                {(isDrawing ? animatingNumbers : lastDrawNumbers).map((number, index) => (
+                {lastDrawNumbers.map((number, index) => (
                   <div
                     key={index}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md border border-white/20 ${
-                      isDrawing ? "bg-gradient-to-br from-white to-gray-100 text-gray-800 animate-pulse" : "bg-white"
-                    }`}
-                    style={{
-                      filter: "none",
-                      color: isDrawing ? "#374151" : "#1f2937",
-                    }}
+                    className="relative w-8 h-8 bg-white rounded shadow-md border border-white/20 overflow-hidden"
                   >
-                    {number}
+                    {/* 老虎机滚动容器 */}
+                    <div
+                      className={`absolute inset-0 flex flex-col items-center justify-start ${
+                        isDrawing ? "animate-spin-slot" : ""
+                      }`}
+                    >
+                      {/* 显示数字0-9的循环滚动列表 */}
+                      {[...Array(20)].map((_, digitIndex) => (
+                        <div
+                          key={digitIndex}
+                          className="w-8 h-8 flex items-center justify-center text-sm font-bold text-gray-800 flex-shrink-0"
+                        >
+                          {isDrawing ? digitIndex % 10 : number}
+                        </div>
+                      ))}
+                    </div>
+                    {/* 当前显示的数字（停止时） */}
+                    {!isDrawing && (
+                      <div className="absolute inset-0 w-8 h-8 flex items-center justify-center text-sm font-bold text-gray-800 bg-white">
+                        {number}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-sm font-bold">=</span>
                 <div
-                  className={`w-9 h-9 flex items-center justify-center ml-1 rounded-full shadow-md border border-orange-300/30 ${
-                    isDrawing
-                      ? "bg-gradient-to-br from-orange-400 to-orange-500 animate-pulse"
-                      : "bg-gradient-to-br from-orange-400 to-orange-500"
-                  }`}
+                                     className="w-9 h-9 flex items-center justify-center ml-1 rounded-full shadow-md border border-purple-200/40 bg-gradient-to-br from-purple-300 to-purple-400 relative overflow-hidden"
                   style={{
                     filter: "none",
                   }}
                 >
-                  <span className="text-sm font-bold text-white">
-                    {isDrawing ? animatingNumbers.reduce((sum, num) => sum + Number.parseInt(num), 0) : lastDrawSum}
-                  </span>
+                  {isDrawing ? (
+                    <div className="animate-pulse">
+                      <span className="text-sm font-bold text-white">
+                        {Math.floor(Math.random() * 28)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-bold text-white">
+                      {lastDrawSum}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
