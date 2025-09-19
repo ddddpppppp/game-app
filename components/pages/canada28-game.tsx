@@ -1,20 +1,25 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { ArrowLeft, Info, Bot, User } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Bot, User, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
 import { useProfile } from "@/hooks/use-profile"
-import { gameService, type BetType, type GameData, type CurrentDraw, type GroupMessage, type DrawHistory, type BetHistory } from "@/lib/services/game"
+import {
+  gameService,
+  type BetType,
+  type GameData,
+  type GroupMessage,
+  type DrawHistory,
+  type BetHistory,
+} from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
 import { WebSocketManager } from "@/lib/utils/websocket"
-import { DrawAnimation } from "@/components/draw-animation"
 
 // 投注分类
 const betCategories = [
@@ -25,6 +30,11 @@ const betCategories = [
 ]
 
 const quickAmounts = [10, 50, 100, 500, 1000]
+
+// 生成随机数字
+const generateRandomNumbers = () => {
+  return Array.from({ length: 3 }, () => Math.floor(Math.random() * 10).toString())
+}
 
 export function Canada28Game() {
   const router = useRouter()
@@ -55,26 +65,27 @@ export function Canada28Game() {
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  
+
   // 计时器状态
   const [timeLeft, setTimeLeft] = useState(0)
   const [isDrawing, setIsDrawing] = useState(false)
-  
+
   // WebSocket状态
   const [wsManager, setWsManager] = useState<WebSocketManager | null>(null)
   const [wsConnected, setWsConnected] = useState(false)
   const [wsReconnecting, setWsReconnecting] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
-  
-  // 开奖动画状态
-  const [showDrawAnimation, setShowDrawAnimation] = useState(false)
-  const [drawResult, setDrawResult] = useState<{
-    numbers: string[]
-    sum: number
-  } | null>(null)
-  
+
+  // 开奖结果状态
+  const [lastDrawNumbers, setLastDrawNumbers] = useState<string[]>(["", "", ""])
+  const [lastDrawSum, setLastDrawSum] = useState<number>(0)
+
+  // 新增的动画状态
+  const [animatingNumbers, setAnimatingNumbers] = useState<string[]>(["", "", ""])
+  const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
   const { toast } = useToast()
-  
+
   // 获取用户余额，提供默认值防止未加载时报错
   const balance = isAuthenticated && user ? user.balance : 0
 
@@ -82,28 +93,28 @@ export function Canada28Game() {
   const scrollToBottom = () => {
     // 方法1：滚动到底部元素（推荐）
     // if (messagesEndRef.current) {
-    //   messagesEndRef.current.scrollIntoView({ 
+    //   messagesEndRef.current.scrollIntoView({
     //     behavior: 'smooth',
     //     block: 'end'
     //   })
     // }
-    
+
     // 方法2：直接设置scrollTop作为备选
     if (messagesScrollRef.current) {
       messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight
     }
   }
 
-    const fetchGameData = async (isRefresh = false) => {
+  const fetchGameData = async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true)
       } else {
         setLoading(true)
       }
-      
+
       const data = await gameService.getCanada28Game()
-      
+
       // 设置倒计时（使用本地时间计算）
       if (data.current_draw) {
         setIsDrawing(false)
@@ -113,7 +124,7 @@ export function Canada28Game() {
         setGameData(data)
       }
     } catch (error) {
-      console.error('Failed to fetch game data:', error)
+      console.error("Failed to fetch game data:", error)
       if (!isRefresh) {
         // 只在初始加载时显示错误toast，刷新时静默处理
         toast({
@@ -136,7 +147,7 @@ export function Canada28Game() {
       const data = await gameService.getCanada28Messages()
       setMessages(data.messages)
     } catch (error) {
-      console.error('Failed to fetch messages:', error)
+      console.error("Failed to fetch messages:", error)
       toast({
         title: "Error",
         description: "Failed to load messages",
@@ -145,26 +156,30 @@ export function Canada28Game() {
     }
   }
 
-  const fetchDrawHistory = async (page: number = 1, append: boolean = false) => {
+  const fetchDrawHistory = async (page = 1, append = false) => {
     try {
       setDrawHistoryLoading(true)
       const data = await gameService.getCanada28DrawHistory(page)
-      
+
       if (append) {
-        setDrawHistory(prev => [...prev, ...data.draws])
+        setDrawHistory((prev) => [...prev, ...data.draws])
       } else {
         setDrawHistory(data.draws)
       }
-      
+
       setDrawHistoryPage(page)
       setDrawHistoryHasMore(data.has_more)
+
+      // 返回数据供其他地方使用
+      return data
     } catch (error) {
-      console.error('Failed to fetch draw history:', error)
+      console.error("Failed to fetch draw history:", error)
       toast({
         title: "Error",
         description: "Failed to load draw history",
         variant: "destructive",
       })
+      return null
     } finally {
       setDrawHistoryLoading(false)
     }
@@ -176,21 +191,21 @@ export function Canada28Game() {
     }
   }
 
-  const fetchBetHistory = async (page: number = 1, append: boolean = false) => {
+  const fetchBetHistory = async (page = 1, append = false) => {
     try {
       setBetHistoryLoading(true)
       const data = await gameService.getCanada28BetHistory(page)
-      
+
       if (append) {
-        setBetHistory(prev => [...prev, ...data.bets])
+        setBetHistory((prev) => [...prev, ...data.bets])
       } else {
         setBetHistory(data.bets)
       }
-      
+
       setBetHistoryPage(page)
       setBetHistoryHasMore(data.has_more)
     } catch (error) {
-      console.error('Failed to fetch bet history:', error)
+      console.error("Failed to fetch bet history:", error)
       toast({
         title: "Error",
         description: "Failed to load bet history",
@@ -209,62 +224,59 @@ export function Canada28Game() {
 
   // 初始化WebSocket连接
   const initializeWebSocket = async () => {
-    
     try {
       const wsUrl = `/game_canada28_ws/connect`
 
       const manager = new WebSocketManager({
         url: wsUrl,
         onConnect: () => {
-          console.log('WebSocket 连接成功')
+          console.log("WebSocket 连接成功")
           setWsConnected(true)
         },
         onDisconnect: () => {
-          console.log('WebSocket 连接断开')
+          console.log("WebSocket 连接断开")
           setWsConnected(false)
         },
         onError: (error) => {
-          console.error('WebSocket 错误:', error)
+          console.error("WebSocket 错误:", error)
           setWsConnected(false)
         },
         onMessage: (data) => {
-          console.log('收到WebSocket消息:', data)
+          console.log("收到WebSocket消息:", data)
           handleWebSocketMessage(data)
-        }
+        },
       })
 
       setWsManager(manager)
-      
+
       // 建立连接，添加认证头
       await manager.connect()
-      
     } catch (error) {
-      console.error('初始化WebSocket失败:', error)
+      console.error("初始化WebSocket失败:", error)
     }
   }
 
   // 处理WebSocket消息
   const handleWebSocketMessage = (data: any) => {
     switch (data.action) {
-      case 'new_message':
+      case "new_message":
         // 收到新的聊天消息，直接添加到消息列表
         if (data.data) {
-          setMessages(prev => [...prev, data.data])
+          setMessages((prev) => [...prev, data.data])
         }
         break
-      case 'draw_result':
+      case "draw_result":
         // 收到开奖结果
         if (data.data) {
-          setDrawResult({
-            numbers: data.data.result_numbers,
-            sum: data.data.result_sum
-          })
+          // 将新的开奖结果设置为上期结果
+          setLastDrawNumbers(data.data.result_numbers.map((n: any) => n.toString()))
+          setLastDrawSum(data.data.result_sum)
           // 刷新游戏数据，重置倒计时，防止重复触发
           fetchGameData(true)
         }
         break
       default:
-        console.log('未处理的WebSocket消息类型:', data.action)
+        console.log("未处理的WebSocket消息类型:", data.action)
     }
   }
 
@@ -272,18 +284,23 @@ export function Canada28Game() {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        await Promise.all([
-          fetchGameData(),
-          fetchMessages()
-        ])
-        
+        await Promise.all([fetchGameData(), fetchMessages()])
+
+        // 获取历史记录来初始化上期开奖号码
+        const historyData = await fetchDrawHistory(1)
+        if (historyData && historyData.draws && historyData.draws.length > 0) {
+          const lastDraw = historyData.draws[0]
+          setLastDrawNumbers(lastDraw.result_numbers.map((n) => n.toString()) || ["", "", ""])
+          setLastDrawSum(lastDraw.result_sum || 0)
+        }
+
         // 数据加载完成后初始化WebSocket
         initializeWebSocket()
       } catch (error) {
-        console.error('Failed to initialize data:', error)
+        console.error("Failed to initialize data:", error)
       }
     }
-    
+
     initializeData()
   }, [])
 
@@ -309,8 +326,6 @@ export function Canada28Game() {
       setTimeLeft((prev) => {
         setIsDrawing((currentIsDrawing) => {
           if (prev < 1 && !currentIsDrawing) {
-            setShowDrawAnimation(true)
-            setDrawResult(null) // 重置开奖结果
             return true
           }
           return currentIsDrawing
@@ -324,12 +339,34 @@ export function Canada28Game() {
     }, 1000)
 
     return () => {
-      console.log('清理倒计时器')
+      console.log("清理倒计时器")
       if (timer) {
         clearInterval(timer)
       }
     }
   }, [gameData])
+
+  // 开始数字动画当抽奖开始时
+  useEffect(() => {
+    if (isDrawing) {
+      // 开始随机数字动画
+      animationIntervalRef.current = setInterval(() => {
+        setAnimatingNumbers(generateRandomNumbers())
+      }, 100) // 每100毫秒更新一次以实现平滑动画
+    } else {
+      // 抽奖未开始时停止动画
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current)
+        animationIntervalRef.current = null
+      }
+    }
+
+    return () => {
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current)
+      }
+    }
+  }, [isDrawing])
 
   // 清理WebSocket连接
   useEffect(() => {
@@ -346,33 +383,13 @@ export function Canada28Game() {
       const timer = setTimeout(() => {
         scrollToBottom()
       }, 200)
-      
+
       return () => clearTimeout(timer)
     }
   }, [messages])
 
   const handleBack = () => {
     router.back()
-  }
-
-  // 关闭开奖动画
-  const handleDrawAnimationComplete = useCallback(() => {
-    setShowDrawAnimation(false)
-    setDrawResult(null)
-  }, [])
-
-  // 测试开奖结果 (开发环境使用)
-  const testDrawResult = () => {
-    const testData = {
-      result_numbers: ["2", "3", "0"],
-      result_sum: 5
-    }
-    console.log('手动测试开奖结果:', testData)
-    setDrawResult({
-      numbers: testData.result_numbers,
-      sum: testData.result_sum
-    })
-    setIsDrawing(false)
   }
 
   // 根据分类获取投注选项
@@ -435,10 +452,10 @@ export function Canada28Game() {
 
     try {
       setBetting(true)
-      
+
       // 调用投注API
       const result = await gameService.placeCanada28Bet(selectedBetType.id, amount)
-      
+
       // 刷新用户信息以更新余额（仅当已登录时）
       if (isAuthenticated) {
         refreshUserInfo().catch(console.error)
@@ -460,9 +477,8 @@ export function Canada28Game() {
         title: "Bet Placed Successfully!",
         description: result.message,
       })
-
     } catch (error: any) {
-      console.error('Failed to place bet:', error)
+      console.error("Failed to place bet:", error)
       toast({
         title: "Bet Failed",
         description: error.message || "Failed to place bet. Please try again.",
@@ -495,105 +511,115 @@ export function Canada28Game() {
     )
   }
 
+  const currentPeriod = gameData.current_draw?.period_number || "N/A"
+
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center justify-between">
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-orange-400 to-orange-500 text-white p-4 z-30 shadow-lg">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="w-4 h-4" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20 p-1"
+              onClick={() => router.push("/")}
+            >
+              <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg text-foreground">
-                  Keno #{gameData.current_draw?.period_number || 'N/A'}
-                </h1>
-                {refreshing && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                {isDrawing ? (
-                  <span className="text-orange-500 font-medium">Drawing...</span>
-                ) : (
-                  <>
-                    <span className="text-muted-foreground">Current draw:</span>
-                    <span className="font-mono font-semibold text-blue-600">{TimeUtils.formatCountdown(timeLeft)}</span>
-                  </>
-                )}
-              </div>
+              <h1 className="text-lg font-bold">Keno</h1>
+              <div className="text-sm opacity-90">Period {currentPeriod}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Dialog open={showRules} onOpenChange={setShowRules}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-foreground bg-transparent">
-                  <Info className="w-4 h-4 mr-2" />
-                  Rules
-                </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full max-h-[80vh] sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Keno Game Rules</DialogTitle>
-              </DialogHeader>
-              <ScrollArea className="max-h-96">
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <h4 className="font-semibold mb-2">1. Big / Small</h4>
-                    <p>Small: 0–13, Big: 14–27</p>
+            <span className="text-sm opacity-90">{isDrawing ? "Drawing" : "Next Draw"}</span>
+            <div className="flex gap-1">
+              {TimeUtils.formatCountdown(timeLeft)
+                .split(":")
+                .map((part, index) => (
+                  <div
+                    key={index}
+                    className="w-8 h-8 bg-white/20 rounded flex items-center justify-center text-sm font-bold"
+                  >
+                    {part}
                   </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">2. Odd / Even</h4>
-                    <p>Based on whether the total is an odd or even number</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">3. Triple</h4>
-                    <p>All three digits identical (e.g., 222, 111).</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">4. Double</h4>
-                    <p>Any two digits are identical (e.g., 011, 010).</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">5. Straight</h4>
-                    <p>Three consecutive digits, regardless of order (e.g., 123, 231).</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">6. Combination Bets</h4>
-                    <p>Big Odd: 15, 17, 19, 21, 23, 25, 27</p>
-                    <p>Small Odd: 01, 03, 05, 07, 09, 11, 13</p>
-                    <p>Big Even: 14, 16, 18, 20, 22, 24, 26</p>
-                    <p>Small Even: 00, 02, 04, 06, 08, 10, 12</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">7. Extreme Bets</h4>
-                    <p>Extreme Small: 0–5, Extreme Big: 22–27</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">8. The Sum (0-27)</h4>
-                    <p>Select any exact total from 0–27.</p>
-                  </div>
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
+                ))}
+            </div>
           </div>
         </div>
+
+        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm opacity-90">
+                Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
+              </span>
+              <div className="flex gap-2">
+                {(isDrawing ? animatingNumbers : lastDrawNumbers).map((number, index) => (
+                  <div
+                    key={index}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md border border-white/20 ${
+                      isDrawing ? "bg-gradient-to-br from-white to-gray-100 text-gray-800 animate-pulse" : "bg-white"
+                    }`}
+                    style={{
+                      filter: "none",
+                      color: isDrawing ? "#374151" : "#1f2937",
+                    }}
+                  >
+                    {number}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold">=</span>
+                <div
+                  className={`w-9 h-9 flex items-center justify-center ml-1 rounded-full shadow-md border border-orange-300/30 ${
+                    isDrawing
+                      ? "bg-gradient-to-br from-orange-400 to-orange-500 animate-pulse"
+                      : "bg-gradient-to-br from-orange-400 to-orange-500"
+                  }`}
+                  style={{
+                    filter: "none",
+                  }}
+                >
+                  <span className="text-sm font-bold text-white">
+                    {isDrawing ? animatingNumbers.reduce((sum, num) => sum + Number.parseInt(num), 0) : lastDrawSum}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {/* <div className="w-6 h-6 flex items-center justify-center">
+              <svg className="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div> */}
+          </div>
+        </div>
+
+        {(timeLeft <= 30 || isDrawing) && (
+          <div className="mt-2 bg-red-500/20 border border-red-400/30 rounded-lg p-2 flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium">
+                {isDrawing ? "Stop Betting - Drawing in Progress" : "Stop Betting - 30s Before Draw"}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-hidden pb-0">
-        <div 
-          ref={messagesScrollRef}
-          className="h-full px-4 py-4 overflow-y-auto scroll-smooth"
-          style={{ maxHeight: 'calc(100vh)' }}
-        >
+      <div className="pt-32">
+        {/* Messages Container */}
+        <div ref={messagesScrollRef} className="h-[calc(100vh)] overflow-y-auto px-4 py-2 space-y-2">
           <div className="space-y-4">
             {messages.map((message) => {
               const isMyMessage = isAuthenticated && user ? gameService.isMyMessage(message, user.uuid) : false
               const isBotMessage = gameService.isBotMessage(message)
-              
+
               return (
                 <div
                   key={message.id || `${message.user_id}-${message.created_at}-${message.message.slice(0, 10)}`}
@@ -610,8 +636,8 @@ export function Canada28Game() {
                       {isBotMessage ? (
                         <Bot className="w-4 h-4" />
                       ) : message.avatar ? (
-                        <img 
-                          src={message.avatar} 
+                        <img
+                          src={message.avatar || "/placeholder.svg"}
                           alt={message.nickname}
                           className="w-8 h-8 rounded-full object-cover"
                         />
@@ -628,16 +654,12 @@ export function Canada28Game() {
                         <p className="text-xs font-medium mb-1 opacity-70">{message.nickname}</p>
                       )}
                       <p className="text-sm break-words whitespace-pre-line">{message.message}</p>
-                      <p className="text-xs opacity-70 mt-1">
-                        {TimeUtils.formatMessageTime(message.created_at)}
-                      </p>
+                      <p className="text-xs opacity-70 mt-1">{TimeUtils.formatMessageTime(message.created_at)}</p>
                     </div>
                   </div>
                 </div>
               )
             })}
-            {/* 底部滚动目标元素 */}
-            {/* <div ref={messagesEndRef} /> */}
           </div>
         </div>
       </div>
@@ -692,7 +714,7 @@ export function Canada28Game() {
                     Close
                   </Button>
                 </div>
-                
+
                 {/* Betting Status */}
                 {timeLeft <= 30 && !isDrawing && (
                   <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
@@ -701,7 +723,7 @@ export function Canada28Game() {
                     </p>
                   </div>
                 )}
-                
+
                 {/* Basic Bets */}
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-foreground mb-2">Basic Bets</h4>
@@ -714,8 +736,8 @@ export function Canada28Game() {
                           variant="outline"
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
-                            isEnabled 
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                            isEnabled
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
                           onClick={() => {
@@ -725,9 +747,7 @@ export function Canada28Game() {
                           }}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {gameService.formatOdds(bet.odds)}
-                          </span>
+                          <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
                         </Button>
                       )
                     })}
@@ -746,8 +766,8 @@ export function Canada28Game() {
                           variant="outline"
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
-                            isEnabled 
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                            isEnabled
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
                           onClick={() => {
@@ -757,9 +777,7 @@ export function Canada28Game() {
                           }}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {gameService.formatOdds(bet.odds)}
-                          </span>
+                          <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
                         </Button>
                       )
                     })}
@@ -778,8 +796,8 @@ export function Canada28Game() {
                           variant="outline"
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
-                            isEnabled 
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                            isEnabled
+                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
                           onClick={() => {
@@ -789,9 +807,7 @@ export function Canada28Game() {
                           }}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {gameService.formatOdds(bet.odds)}
-                          </span>
+                          <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
                         </Button>
                       )
                     })}
@@ -805,8 +821,8 @@ export function Canada28Game() {
                     variant="outline"
                     disabled={!canPlaceBet()}
                     className={`w-full h-auto min-h-[50px] p-3 flex flex-col justify-center items-center text-center ${
-                      canPlaceBet() 
-                        ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                      canPlaceBet()
+                        ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     }`}
                     onClick={() => setSelectedCategory("sum")}
@@ -820,11 +836,16 @@ export function Canada28Game() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">The Sum (0-27)</h3>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedCategory(null)} className="text-foreground">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="text-foreground"
+                  >
                     Back
                   </Button>
                 </div>
-                
+
                 <div className="grid grid-cols-4 gap-2 p-2 max-h-80 overflow-y-auto">
                   {getBetsByCategory("sum").map((bet) => {
                     const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
@@ -834,28 +855,26 @@ export function Canada28Game() {
                         variant="outline"
                         disabled={!isEnabled}
                         className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
-                          isEnabled 
-                            ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground" 
+                          isEnabled
+                            ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
                             : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                         }`}
                         onClick={() => isEnabled && setSelectedBetType(bet)}
                       >
                         <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                        <span className="text-xs text-muted-foreground mt-1">
-                          {gameService.formatOdds(bet.odds)}
-                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
                       </Button>
                     )
                   })}
                 </div>
               </div>
-                        ) : (
+            ) : (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ''}
+                      Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ""}
                     </p>
                   </div>
                   <Button
@@ -905,11 +924,7 @@ export function Canada28Game() {
                       onChange={(e) => setBetAmount(e.target.value)}
                       className="flex-1"
                     />
-                    <Button 
-                      onClick={handlePlaceBet} 
-                      className="px-6" 
-                      disabled={isDrawing || betting || !canPlaceBet()}
-                    >
+                    <Button onClick={handlePlaceBet} className="px-6" disabled={isDrawing || betting || !canPlaceBet()}>
                       {betting ? "Betting..." : isDrawing ? "Drawing..." : timeLeft <= 30 ? "Betting Closed" : "Bet"}
                     </Button>
                   </div>
@@ -920,24 +935,34 @@ export function Canada28Game() {
                       <span className="text-muted-foreground">Current Balance:</span>
                       <span className="font-semibold text-foreground">${balance.toFixed(2)}</span>
                     </div>
-                    
+
                     {betAmount && Number.parseFloat(betAmount) > 0 && selectedBetType && (
                       <>
                         <div className="border-t border-border pt-2">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">Potential Winnings:</span>
                             <span className="font-semibold text-green-600">
-                              ${gameService.calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)}
+                              $
+                              {gameService
+                                .calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds)
+                                .toFixed(2)}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                             <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
-                            <span>Profit: ${gameService.calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)}</span>
+                            <span>
+                              Profit: $
+                              {gameService
+                                .calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds)
+                                .toFixed(2)}
+                            </span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Remaining balance:</span>
-                          <span className={`font-medium ${balance - Number.parseFloat(betAmount) < 0 ? 'text-red-500' : 'text-foreground'}`}>
+                          <span
+                            className={`font-medium ${balance - Number.parseFloat(betAmount) < 0 ? "text-red-500" : "text-foreground"}`}
+                          >
                             ${(balance - Number.parseFloat(betAmount)).toFixed(2)}
                           </span>
                         </div>
@@ -956,7 +981,7 @@ export function Canada28Game() {
                 Close
               </Button>
             </div>
-            
+
             {betHistory.length === 0 && !betHistoryLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No bet history yet</p>
@@ -976,19 +1001,19 @@ export function Canada28Game() {
                         {TimeUtils.formatMessageTime(bet.created_at)}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground">{bet.bet_type_name}</span>
                         <span className="text-sm text-foreground">${bet.amount.toFixed(2)}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Multiplier: {gameService.formatOdds(bet.multiplier)}</span>
                         <span>Potential: ${bet.potential_win.toFixed(2)}</span>
                       </div>
-                      
-                      {bet.status !== 'pending' && (
+
+                      {bet.status !== "pending" && (
                         <div className="text-xs text-muted-foreground border-t pt-2">
                           <span>Result: {gameService.getBetResultText(bet)}</span>
                         </div>
@@ -996,14 +1021,14 @@ export function Canada28Game() {
                     </div>
                   </div>
                 ))}
-                
+
                 {betHistoryHasMore && (
                   <div className="flex justify-center pt-4">
                     <Button
                       variant="outline"
                       onClick={handleLoadMoreBetHistory}
                       disabled={betHistoryLoading}
-                      className="w-full"
+                      className="w-full bg-transparent"
                     >
                       {betHistoryLoading ? (
                         <>
@@ -1027,7 +1052,7 @@ export function Canada28Game() {
                 Close
               </Button>
             </div>
-            
+
             {drawHistory.length === 0 && !drawHistoryLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No draw history yet</p>
@@ -1043,11 +1068,9 @@ export function Canada28Game() {
                           {draw.status_text}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {TimeUtils.formatMessageTime(draw.draw_at)}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{TimeUtils.formatMessageTime(draw.draw_at)}</span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {draw.result_numbers.map((number, index) => (
@@ -1059,7 +1082,7 @@ export function Canada28Game() {
                           </div>
                         ))}
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-lg font-bold text-foreground">{draw.result_sum}</div>
                         <div className="text-xs text-muted-foreground flex gap-1">
@@ -1071,14 +1094,14 @@ export function Canada28Game() {
                     </div>
                   </div>
                 ))}
-                
+
                 {drawHistoryHasMore && (
                   <div className="flex justify-center pt-4">
                     <Button
                       variant="outline"
                       onClick={handleLoadMoreHistory}
                       disabled={drawHistoryLoading}
-                      className="w-full"
+                      className="w-full bg-transparent"
                     >
                       {drawHistoryLoading ? (
                         <>
@@ -1097,15 +1120,6 @@ export function Canada28Game() {
         )}
       </div>
 
-      {/* 开奖动画 */}
-      <DrawAnimation
-        isVisible={showDrawAnimation}
-        isDrawing={isDrawing}
-        resultNumbers={drawResult?.numbers}
-        resultSum={drawResult?.sum}
-        onComplete={handleDrawAnimationComplete}
-      />
-
       {/* 登录对话框 */}
       <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
         <DialogContent className="max-w-[90vw] w-full max-h-[80vh] sm:max-w-md">
@@ -1117,7 +1131,7 @@ export function Canada28Game() {
               You need to log in to access betting features and view your history.
             </p>
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={() => {
                   setShowLoginDialog(false)
                   router.push("/login")
@@ -1126,7 +1140,7 @@ export function Canada28Game() {
               >
                 Login
               </Button>
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => {
                   setShowLoginDialog(false)
