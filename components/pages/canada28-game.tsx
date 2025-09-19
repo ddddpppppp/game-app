@@ -541,7 +541,7 @@ export function Canada28Game() {
                     key={index}
                     className="w-8 h-8 bg-white/20 rounded flex items-center justify-center text-sm font-bold"
                   >
-                    {part}
+                    {isDrawing ? "--" : part}
                   </div>
                 ))}
             </div>
@@ -554,7 +554,7 @@ export function Canada28Game() {
               <span className="text-sm opacity-90">
                 Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 ml-3">
                 {(isDrawing ? animatingNumbers : lastDrawNumbers).map((number, index) => (
                   <div
                     key={index}
