@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Bot, User, ArrowLeft } from "lucide-react"
+import { Bot, User, ArrowLeft, HelpCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
@@ -595,7 +595,7 @@ export function Canada28Game() {
   const currentPeriod = gameData.current_draw?.period_number || "N/A"
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative rounded-b-lg overflow-hidden">
       <style jsx>{`
         @keyframes spin-slot {
           0% { transform: translateY(0); }
@@ -606,19 +606,19 @@ export function Canada28Game() {
         }
 
       `}</style>
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-purple-400 to-purple-500 text-white p-4 z-30 shadow-lg">
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-4 z-30 shadow-lg rounded-b-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20 p-1"
-              onClick={() => router.push("/")}
-            >
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:bg-primary-foreground/20 p-1"
+                onClick={() => router.push("/")}
+              >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-lg font-bold">Keno</h1>
+              <h1 className="text-lg font-bold">Canada 28</h1>
               <div className="text-sm opacity-90">Period {currentPeriod}</div>
             </div>
           </div>
@@ -635,7 +635,7 @@ export function Canada28Game() {
                         ? "bg-red-500 text-white animate-pulse" 
                         : isTimeWarning 
                         ? "bg-orange-400 text-white animate-pulse" 
-                        : "bg-white/20"
+                        : "bg-primary-foreground/20"
                     }`}
                   >
                     {isDrawing ? "--" : part}
@@ -645,7 +645,7 @@ export function Canada28Game() {
           </div>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 mt-2">
+        <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-3 mt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-sm opacity-90">
@@ -1270,6 +1270,16 @@ export function Canada28Game() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 固定帮助按钮 */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border-border shadow-lg hover:bg-accent hover:text-accent-foreground"
+        onClick={() => setShowGameIntro(true)}
+      >
+        <HelpCircle className="w-5 h-5" />
+      </Button>
 
       {/* 游戏介绍对话框 */}
       <GameIntroDialog 
