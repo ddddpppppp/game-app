@@ -10,11 +10,12 @@ export default function RootPage() {
   const pathname = usePathname()
   useEffect(() => {
     if (!isLoading) {
-      if (isAuthenticated || pathname === "/") {
-        router.replace("/home")
-      } else {
-        router.replace("/login")
-      }
+      // console.log(pathname)
+      // if (isAuthenticated || pathname === "/") {
+      //   router.replace("/home")
+      // } else {
+      //   router.replace("/login")
+      // }
     }
   }, [router, isAuthenticated, isLoading])
 

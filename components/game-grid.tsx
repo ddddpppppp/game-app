@@ -57,13 +57,25 @@ function CountdownDisplay({ endAt }: { endAt: string | null }) {
   }
 
   return (
-    <div className="w-full h-24 bg-gradient-to-br from-blue-500 to-purple-600 flex flex-col items-center justify-center text-white">
-      <div className="text-xs opacity-80 mb-1">Next Draw Countdown</div>
-      <div className="text-2xl font-mono font-bold tracking-wider">
-        {formatTime(timeLeft)}
-      </div>
-      <div className="text-xs opacity-80 mt-1">
-        {timeLeft > 0 ? "Betting Open" : "Drawing..."}
+    <div 
+      className="w-full h-24 flex flex-col items-center justify-center text-white relative"
+      style={{
+        backgroundImage: 'url(/canada28.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* 添加半透明遮罩以确保文字可读性 */}
+      <div className="absolute inset-0 bg-black/40 rounded-t-lg"></div>
+      <div className="relative z-10 flex flex-col items-center justify-center">
+        <div className="text-xs opacity-90 mb-1 font-medium">Next Draw Countdown</div>
+        <div className="text-2xl font-mono font-bold tracking-wider drop-shadow-lg">
+          {formatTime(timeLeft)}
+        </div>
+        <div className="text-xs opacity-90 mt-1 font-medium">
+          {timeLeft > 0 ? "Betting Open" : "Drawing..."}
+        </div>
       </div>
     </div>
   )

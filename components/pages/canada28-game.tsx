@@ -20,6 +20,7 @@ import {
 } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
 import { WebSocketManager } from "@/lib/utils/websocket"
+import { GameIntroDialog, shouldShowGameIntro } from "@/components/game-intro-dialog"
 
 // 投注分类
 const betCategories = [
@@ -43,7 +44,6 @@ export function Canada28Game() {
 
   // 滚动容器ref
   const messagesScrollRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
 
   // API数据状态
   const [gameData, setGameData] = useState<GameData | null>(null)
@@ -63,6 +63,7 @@ export function Canada28Game() {
   const [betAmount, setBetAmount] = useState("")
   const [showRules, setShowRules] = useState(false)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
+  const [showGameIntro, setShowGameIntro] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -89,7 +90,7 @@ export function Canada28Game() {
   const [isTimeCritical, setIsTimeCritical] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
 
-    const { toast } = useToast()
+  const { toast } = useToast()
   
   // 初始化音频上下文（减少延迟）
   const initAudioContext = () => {
@@ -142,8 +143,12 @@ export function Canada28Game() {
     if (messagesScrollRef.current) {
       messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight
     }
-    if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight + 400
+    // 控制浏览器默认的body滚动
+    if (typeof window !== 'undefined') {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth'
+      })
     }
   }
 
@@ -347,6 +352,16 @@ export function Canada28Game() {
         }
         document.addEventListener('click', handleFirstInteraction)
         document.addEventListener('touchstart', handleFirstInteraction)
+        
+        // 初始化完成后滚动到底部
+        setTimeout(() => {
+          scrollToBottom()
+        }, 500)
+
+        // 检查是否需要显示游戏介绍
+        if (shouldShowGameIntro()) {
+          setShowGameIntro(true)
+        }
       } catch (error) {
         console.error("Failed to initialize data:", error)
       }
@@ -580,7 +595,7 @@ export function Canada28Game() {
   const currentPeriod = gameData.current_draw?.period_number || "N/A"
 
   return (
-    <div ref={bodyRef} className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative">
       <style jsx>{`
         @keyframes spin-slot {
           0% { transform: translateY(0); }
@@ -1239,7 +1254,7 @@ export function Canada28Game() {
                 }}
                 className="flex-1"
               >
-                Login
+                Sign In
               </Button>
               <Button
                 variant="outline"
@@ -1249,12 +1264,18 @@ export function Canada28Game() {
                 }}
                 className="flex-1"
               >
-                Register
+                Sign Up
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 游戏介绍对话框 */}
+      <GameIntroDialog 
+        open={showGameIntro} 
+        onOpenChange={setShowGameIntro} 
+      />
     </div>
   )
 }

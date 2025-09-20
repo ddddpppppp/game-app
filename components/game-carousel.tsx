@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface CarouselItem {
   id: string
@@ -17,29 +18,15 @@ const mockCarouselData: CarouselItem[] = [
   {
     id: "1",
     title: "Welcome Bonus",
-    description: "Get 100% bonus on your first deposit up to $500!",
+    description: "Get a $20 bonus upon registration, with a chance to win up to 500x the grand prize!",
     image: "/casino-welcome-bonus-golden-coins.jpg",
     buttonText: "Claim Now",
-  },
-  {
-    id: "2",
-    title: "Mega Jackpot",
-    description: "Progressive jackpot now over $1,000,000!",
-    image: "/mega-jackpot-slot-machine-golden.jpg",
-    buttonText: "Play Now",
-  },
-  {
-    id: "3",
-    title: "Tournament Week",
-    description: "Join our weekly tournament and win big prizes!",
-    image: "/poker-tournament-championship-trophy.jpg",
-    buttonText: "Join Tournament",
-  },
+  }
 ]
 
 export function GameCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
-
+  const router = useRouter()
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex === mockCarouselData.length - 1 ? 0 : prevIndex + 1))
@@ -88,6 +75,7 @@ export function GameCarousel() {
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = "#0f172a"
                   }}
+                  onClick={() => router.push("/login")}
                 >
                   {mockCarouselData[currentIndex].buttonText}
                 </button>

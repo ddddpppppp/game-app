@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
 
   // 缓存公开页面路径，避免每次重新计算
-  const publicPages = ["/login", "/register", "/forgot-password", "/home", "/games/canada28", "/"]
-  const authPages = ["/login", "/register", "/forgot-password"]
+  const publicPages = ["/login", "/register", "/forgot-password", "/home", "/games/canada28", "/", "/login/", "/register/", "/forgot-password/", "/home/", "/games/canada28/"]
+  const authPages = ["/login", "/register", "/forgot-password", "/login/", "/register/", "/forgot-password/"]
 
   // 优化路由重定向，使用useCallback缓存函数
   const redirectToLogin = useCallback(() => {
@@ -45,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
 
     const token = localStorage.getItem('token')
+    console.log('token', token)
+    console.log('pathname', pathname)
     if (!token) {
       // 没有 token，未登录状态
       setIsAuthenticated(false)
