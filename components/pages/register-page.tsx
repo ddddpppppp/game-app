@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/services/auth"
 import { useAuth } from "@/components/auth-provider"
+import { getDeviceCode } from "@/lib/utils/device"
 
 interface RegisterPageProps {
   onSwitchToLogin: () => void
@@ -121,12 +122,16 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
     }
 
     try {
+      // 获取设备码
+      const deviceCode = getDeviceCode()
+      
       // 调用注册 API
       const response = await authService.register({
         email,
         password,
         name,
         code: verificationCode,
+        device_code: deviceCode,
       })
       
       // 注册成功后自动登录

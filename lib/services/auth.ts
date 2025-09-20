@@ -11,6 +11,7 @@ export interface RegisterRequest {
   password: string
   name: string
   code: string
+  device_code?: string
   parent_id?: number
 }
 
