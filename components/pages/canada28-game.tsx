@@ -30,7 +30,25 @@ const betCategories = [
   { id: "sum", name: "The Sum", icon: "🔢" },
 ]
 
-const quickAmounts = [10, 50, 100, 500, 1000]
+const baseQuickAmounts = [1, 5, 10, 50, 100]
+
+// 倍数级别：1, 2, 4, 8, 16, 32, 64
+const multiplierLevels = [1, 2, 4, 8, 16, 32, 64]
+
+// 从本地存储获取倍数级别索引
+const getStoredMultiplierIndex = () => {
+  if (typeof window === 'undefined') return 0
+  const stored = localStorage.getItem('canada28-multiplier-index')
+  const index = stored ? Number.parseInt(stored) : 0
+  return Math.max(0, Math.min(multiplierLevels.length - 1, index)) // 确保在0-7范围内
+}
+
+// 保存倍数级别索引到本地存储
+const saveMultiplierIndex = (index: number) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('canada28-multiplier-index', index.toString())
+  }
+}
 
 // 生成随机数字
 const generateRandomNumbers = () => {
@@ -66,6 +84,8 @@ export function Canada28Game() {
   const [showGameIntro, setShowGameIntro] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [multiplierIndex, setMultiplierIndex] = useState(0)
+  const [quickAmounts, setQuickAmounts] = useState(baseQuickAmounts)
 
   // 计时器状态
   const [timeLeft, setTimeLeft] = useState(0)
@@ -326,6 +346,14 @@ export function Canada28Game() {
         console.log("未处理的WebSocket消息类型:", data.action)
     }
   }
+
+  // 初始化倍数从本地存储
+  useEffect(() => {
+    const storedIndex = getStoredMultiplierIndex()
+    setMultiplierIndex(storedIndex)
+    const multiplier = multiplierLevels[storedIndex]
+    setQuickAmounts(baseQuickAmounts.map(amount => amount * multiplier))
+  }, [])
 
   // 初始化游戏数据和消息
   useEffect(() => {
@@ -989,9 +1017,57 @@ export function Canada28Game() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ""}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ""}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newIndex = Math.min(multiplierLevels.length - 1, multiplierIndex + 1)
+                            if (newIndex !== multiplierIndex) {
+                              setMultiplierIndex(newIndex)
+                              const newMultiplier = multiplierLevels[newIndex]
+                              setQuickAmounts(baseQuickAmounts.map(amount => amount * newMultiplier))
+                              saveMultiplierIndex(newIndex)
+                              // 更新当前投注金额
+                              const currentAmount = Number.parseFloat(betAmount) || 0
+                              if (currentAmount > 0) {
+                                setBetAmount((currentAmount * 2).toString())
+                              }
+                            }
+                          }}
+                          disabled={multiplierIndex >= multiplierLevels.length - 1}
+                          className="h-6 w-6 p-0 text-xs rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 disabled:opacity-50"
+                        >
+                          ×
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newIndex = Math.max(0, multiplierIndex - 1)
+                            if (newIndex !== multiplierIndex) {
+                              setMultiplierIndex(newIndex)
+                              const newMultiplier = multiplierLevels[newIndex]
+                              setQuickAmounts(baseQuickAmounts.map(amount => amount * newMultiplier))
+                              saveMultiplierIndex(newIndex)
+                              // 更新当前投注金额
+                              const currentAmount = Number.parseFloat(betAmount) || 0
+                              if (currentAmount > 0) {
+                                setBetAmount(Math.max(1, currentAmount / 2).toString())
+                              }
+                            }
+                          }}
+                          disabled={multiplierIndex <= 0}
+                          className="h-6 w-6 p-0 text-xs rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 disabled:opacity-50"
+                        >
+                          ÷
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
@@ -1275,7 +1351,7 @@ export function Canada28Game() {
       <Button
         variant="outline"
         size="sm"
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border-border shadow-lg hover:bg-accent hover:text-accent-foreground"
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border-border shadow-lg hover:bg-accent hover:text-accent-foreground"
         onClick={() => setShowGameIntro(true)}
       >
         <HelpCircle className="w-5 h-5" />
