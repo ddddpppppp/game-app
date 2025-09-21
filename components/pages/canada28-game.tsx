@@ -17,6 +17,7 @@ import {
   type GroupMessage,
   type DrawHistory,
   type BetHistory,
+  type DynamicOddsRule,
 } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
 import { WebSocketManager } from "@/lib/utils/websocket"
@@ -874,6 +875,10 @@ export function Canada28Game() {
                   <div className="grid grid-cols-4 gap-2">
                     {getBetsByCategory("basic").map((bet) => {
                       const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                      const specialOdds = gameService.getSpecialOdds(bet, gameData?.dynamic_odds_rules)
+                      const oddsDisplay = gameService.formatOddsWithSpecial(bet.odds, specialOdds)
+                      // const hasSpecialOdds = specialOdds && specialOdds !== bet.odds
+                      
                       return (
                         <Button
                           key={bet.id}
@@ -891,7 +896,9 @@ export function Canada28Game() {
                           }}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
+                          <span className={`text-xs mt-1 text-muted-foreground`}>
+                            {oddsDisplay}
+                          </span>
                         </Button>
                       )
                     })}
@@ -904,6 +911,10 @@ export function Canada28Game() {
                   <div className="grid grid-cols-2 gap-2">
                     {getBetsByCategory("combination").map((bet) => {
                       const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                      const specialOdds = gameService.getSpecialOdds(bet, gameData?.dynamic_odds_rules)
+                      const oddsDisplay = gameService.formatOddsWithSpecial(bet.odds, specialOdds)
+                      // const hasSpecialOdds = specialOdds && specialOdds !== bet.odds
+                      
                       return (
                         <Button
                           key={bet.id}
@@ -921,7 +932,9 @@ export function Canada28Game() {
                           }}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
+                          <span className={`text-xs mt-1 text-muted-foreground}`}>
+                            {oddsDisplay}
+                          </span>
                         </Button>
                       )
                     })}
@@ -1019,7 +1032,10 @@ export function Canada28Game() {
                     <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">
-                        Multiplier: {selectedBetType ? gameService.formatOdds(selectedBetType.odds) : ""}
+                        Multiplier: {selectedBetType ? (() => {
+                          const specialOdds = gameService.getSpecialOdds(selectedBetType, gameData?.dynamic_odds_rules)
+                          return gameService.formatOddsWithSpecial(selectedBetType.odds, specialOdds)
+                        })() : ""}
                       </p>
                       <div className="flex gap-1">
                         <Button
@@ -1135,18 +1151,20 @@ export function Canada28Game() {
                             <span className="text-muted-foreground">Potential Winnings:</span>
                             <span className="font-semibold text-green-600">
                               $
-                              {gameService
-                                .calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds)
-                                .toFixed(2)}
+                              {(() => {
+                                // 使用正常赔率计算潜在奖金，特殊赔率只是显示参考
+                                return gameService.calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)
+                              })()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                             <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
                             <span>
                               Profit: $
-                              {gameService
-                                .calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds)
-                                .toFixed(2)}
+                              {(() => {
+                                // 使用正常赔率计算利润，特殊赔率只是显示参考
+                                return gameService.calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)
+                              })()}
                             </span>
                           </div>
                         </div>

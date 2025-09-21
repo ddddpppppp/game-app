@@ -45,8 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
 
     const token = localStorage.getItem('token')
-    console.log('token', token)
-    console.log('pathname', pathname)
     if (!token) {
       // 没有 token，未登录状态
       setIsAuthenticated(false)

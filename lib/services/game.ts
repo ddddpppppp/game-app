@@ -83,10 +83,22 @@ export interface BetHistoryData {
   has_more: boolean
 }
 
+// 动态赔率规则接口
+export interface DynamicOddsRule {
+  id: number
+  rule_name: string
+  trigger_condition: string
+  trigger_values: any
+  bet_type_adjustments: Record<string, number>
+  status: number
+  priority: number
+}
+
 // 游戏数据接口
 export interface GameData {
   bet_types: BetType[]
   current_draw: CurrentDraw | null
+  dynamic_odds_rules?: DynamicOddsRule[]
 }
 
 // 消息数据接口
@@ -161,6 +173,57 @@ class GameService {
   // 格式化赔率显示
   formatOdds(odds: number): string {
     return `${odds}x`
+  }
+
+  // 获取特殊赔率（如果有的话）
+  getSpecialOdds(betType: BetType, dynamicRules?: DynamicOddsRule[]): number | null {
+    if (!dynamicRules || dynamicRules.length === 0) {
+      return null
+    }
+
+    // 查找适用的规则（这里不需要实际的开奖结果，只是检查是否有规则配置）
+    const applicableRules = dynamicRules
+      .filter(rule => rule.status === 1)
+      .filter(rule => rule.bet_type_adjustments[betType.type_key] !== undefined)
+      .sort((a, b) => b.priority - a.priority) // 按优先级排序
+
+    if (applicableRules.length === 0) {
+      return null
+    }
+
+    // 返回第一个（最高优先级）规则的调整赔率
+    const rule = applicableRules[0]
+    return rule.bet_type_adjustments[betType.type_key]
+  }
+
+  // 检查规则条件
+  private checkRuleCondition(rule: DynamicOddsRule, drawSum: number): boolean {
+    try {
+      switch (rule.trigger_condition) {
+        case 'sum_in':
+          const values = Array.isArray(rule.trigger_values) ? rule.trigger_values : JSON.parse(rule.trigger_values)
+          return Array.isArray(values) && values.includes(drawSum)
+        case 'sum_range':
+          const range = typeof rule.trigger_values === 'object' ? rule.trigger_values : JSON.parse(rule.trigger_values)
+          return drawSum >= range.min && drawSum <= range.max
+        case 'sum_exact':
+          const exact = typeof rule.trigger_values === 'number' ? rule.trigger_values : JSON.parse(rule.trigger_values)
+          return drawSum === exact
+        default:
+          return false
+      }
+    } catch (error) {
+      console.error('Error checking rule condition:', error)
+      return false
+    }
+  }
+
+  // 格式化赔率显示 - 支持动态赔率
+  formatOddsWithSpecial(normalOdds: number, specialOdds?: number | null): string {
+    if (specialOdds && specialOdds !== normalOdds) {
+      return `${normalOdds}x/${specialOdds}x`
+    }
+    return `${normalOdds}x`
   }
 
   // 检查投注类型是否可用
