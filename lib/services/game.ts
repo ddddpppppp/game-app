@@ -148,9 +148,9 @@ class GameService {
   // 根据分类获取投注类型
   getBetTypesByCategory(betTypes: BetType[], category: string): BetType[] {
     const categoryMap: { [key: string]: string[] } = {
-      basic: ['big', 'small', 'odd', 'even'],
-      combination: ['big_odd', 'small_odd', 'big_even', 'small_even'],
-      special: ['extreme_small', 'extreme_big', 'triple', 'double', 'straight'],
+      basic: ['high', 'low', 'odd', 'even'],
+      combination: ['high_odd', 'low_odd', 'high_even', 'low_even'],
+      special: ['extreme_low', 'extreme_high', 'triple', 'pair', 'straight'],
       sum: Array.from({ length: 28 }, (_, i) => `sum_${i}`)
     }
     
@@ -198,8 +198,8 @@ class GameService {
 
   // 判断总和的大小
   getSumType(sum: number): string {
-    if (sum >= 0 && sum <= 13) return 'Small'
-    if (sum >= 14 && sum <= 27) return 'Big'
+    if (sum >= 0 && sum <= 13) return 'Low'
+    if (sum >= 14 && sum <= 27) return 'High'
     return 'Unknown'
   }
 
