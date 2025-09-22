@@ -19,7 +19,17 @@ export function GameIntroDialog({ open, onOpenChange }: GameIntroDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[90vh] sm:max-w-2xl overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full max-h-[75vh] sm:max-w-2xl overflow-y-auto 
+        dialog-mobile-safe sm:mt-0 sm:mb-0 
+         sm:mx-auto 
+        data-[state=open]:animate-in 
+        data-[state=closed]:animate-out 
+        data-[state=closed]:fade-out-0 
+        data-[state=open]:fade-in-0 
+        data-[state=closed]:zoom-out-95 
+        data-[state=open]:zoom-in-95 
+        data-[state=closed]:slide-out-to-top-[2%] 
+        data-[state=open]:slide-in-from-top-[2%]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-center">🎯 Canada 28 Keno Game Guide</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground">

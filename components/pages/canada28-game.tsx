@@ -642,7 +642,7 @@ export function Canada28Game() {
                 variant="ghost"
                 size="sm"
                 className="text-primary-foreground hover:bg-primary-foreground/20 p-1"
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/home")}
               >
               <ArrowLeft className="w-5 h-5" />
             </Button>

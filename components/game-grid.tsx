@@ -60,7 +60,7 @@ function CountdownDisplay({ endAt }: { endAt: string | null }) {
     <div 
       className="w-full h-24 flex flex-col items-center justify-center text-white relative"
       style={{
-        backgroundImage: 'url(/canada28.png)',
+        backgroundImage: 'url(/canada28-1.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -95,12 +95,13 @@ const mockGames: Game[] = [
 export function GameGrid() {
   const router = useRouter()
   const [currentDraw, setCurrentDraw] = useState<CurrentDraw | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   // 获取当前期数信息
   useEffect(() => {
     const fetchCurrentDraw = async () => {
       try {
+        setLoading(true)
         const data = await gameService.getCanada28GameCurrentDraw()
         setCurrentDraw(data.current_draw)
       } catch (error) {

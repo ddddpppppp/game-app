@@ -10,7 +10,8 @@ import { AppLayout } from "@/components/app-layout"
 export const metadata: Metadata = {
   title: "Gaming Hub",
   description: "Your ultimate gaming destination",
-    generator: 'v0.app'
+  generator: 'v0.app',
+  viewport: "width=device-width, initial-scale=1, viewport-fit=cover"
 }
 
 export default function RootLayout({

@@ -18,9 +18,9 @@ const mockCarouselData: CarouselItem[] = [
   {
     id: "1",
     title: "Welcome Bonus",
-    description: "Get a $20 bonus upon registration, with a chance to win up to 500x the grand prize!",
-    image: "/casino-welcome-bonus-golden-coins.jpg",
-    buttonText: "Claim Now",
+    description: "Get a $20 bonus upon registration！",
+    image: "/canada28.png",
+    buttonText: "Sign Up",
   }
 ]
 
@@ -47,35 +47,29 @@ export function GameCarousel() {
     <div className="relative w-full">
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="relative h-48 md:h-56">
+          <div className="relative h-56 md:h-56">
             <img
               src={mockCarouselData[currentIndex].image || "/placeholder.svg"}
               alt={mockCarouselData[currentIndex].title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" />
+            {/* <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" /> */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm">
               <div className="p-4 text-white">
-                <h3 className="text-xl font-bold mb-2 text-balance carousel-text">
+                {/* <h3 className="text-xl font-bold mb-2 text-balance carousel-text">
                   {mockCarouselData[currentIndex].title}
-                </h3>
-                <p className="text-sm mb-3 text-pretty opacity-95 carousel-text">
+                </h3> */}
+                <p className="text-sm mb-3 text-pretty opacity-95 carousel-tex text-center">
                   {mockCarouselData[currentIndex].description}
                 </p>
                 <button
                   className="px-4 py-2 text-sm font-semibold rounded-md shadow-lg transition-colors cursor-pointer"
                   style={{
-                    backgroundColor: "#0f172a",
+                    backgroundColor: "rgb(39, 107, 35)",
                     color: "#ffffff",
-                    border: "1px solid #0f172a",
+                    border: "1px solidrgb(39, 107, 35)",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#1e293b"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#0f172a"
-                  }}
-                  onClick={() => router.push("/login")}
+                  onClick={() => router.push("/register")}
                 >
                   {mockCarouselData[currentIndex].buttonText}
                 </button>
@@ -86,7 +80,7 @@ export function GameCarousel() {
       </Card>
 
       {/* Navigation buttons */}
-      <Button
+      {/* <Button
         variant="outline"
         size="icon"
         className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white hover:bg-white border-gray-300"
@@ -102,10 +96,10 @@ export function GameCarousel() {
         onClick={goToNext}
       >
         <ChevronRight className="h-4 w-4 text-gray-800" />
-      </Button>
+      </Button> */}
 
       {/* Dots indicator */}
-      <div className="flex justify-center gap-2 mt-4">
+      {/* <div className="flex justify-center gap-2 mt-4">
         {mockCarouselData.map((_, index) => (
           <button
             key={index}
@@ -113,7 +107,7 @@ export function GameCarousel() {
             onClick={() => setCurrentIndex(index)}
           />
         ))}
-      </div>
+      </div> */}
     </div>
   )
 }
