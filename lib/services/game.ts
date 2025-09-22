@@ -162,7 +162,7 @@ class GameService {
     const categoryMap: { [key: string]: string[] } = {
       basic: ['high', 'low', 'odd', 'even'],
       combination: ['high_odd', 'low_odd', 'high_even', 'low_even'],
-      special: ['extreme_low', 'extreme_high', 'triple', 'pair', 'straight'],
+      special: ['extreme_low', 'extreme_high', 'pair', 'straight', 'triple'],
       sum: Array.from({ length: 28 }, (_, i) => `sum_${i}`)
     }
     

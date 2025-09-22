@@ -116,6 +116,136 @@ export function GameIntroDialog({ open, onOpenChange }: GameIntroDialogProps) {
             </div>
           </div>
 
+          {/* Betting Rules & Payouts */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              💰 Betting Rules & Payouts
+            </h3>
+            
+            {/* High/Low Bets */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-purple-50 text-purple-700">1</Badge>
+                High / Low (2X)
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span>• Low: Numbers 0-13</span>
+                  <Badge variant="secondary" className="text-xs">2x / 1.6x*</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• High: Numbers 14-27</span>
+                  <Badge variant="secondary" className="text-xs">2x / 1.6x*</Badge>
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  *Payout: 1.6x if 13 or 14 is selected, 2x for any other number
+                </div>
+              </div>
+            </div>
+
+            {/* Odd/Even Bets */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">2</Badge>
+                Odd / Even (2X)
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="text-muted-foreground">
+                  Based on whether the total ends with an odd or even digit
+                </div>
+                <div className="text-muted-foreground">
+                  Payout: 1.6x if 13 or 14 is selected, 2x for any other number
+                </div>
+              </div>
+            </div>
+
+            {/* Extreme Bets */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-red-50 text-red-700">3</Badge>
+                Extreme Bets (10X)
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span>• Extreme Low: Numbers 0-5</span>
+                  <Badge variant="destructive" className="text-xs">10x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Extreme High: Numbers 22-27</span>
+                  <Badge variant="destructive" className="text-xs">10x</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Combination Bets */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-green-50 text-green-700">4</Badge>
+                Combination Bets
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span>• High Even: 14, 16, 18, 20, 22, 24, 26</span>
+                  <Badge variant="secondary" className="text-xs">4.5x / 1x*</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Low Even: 00, 02, 04, 06, 08, 10, 12</span>
+                  <Badge variant="secondary" className="text-xs">4.2x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• High Odd: 15, 17, 19, 21, 23, 25, 27</span>
+                  <Badge variant="secondary" className="text-xs">4.2x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Low Odd: 01, 03, 05, 07, 09, 11, 13</span>
+                  <Badge variant="secondary" className="text-xs">4.5x / 1x*</Badge>
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  *Exception: 14 on High Even pays 1x, 13 on Low Odd pays 1x
+                </div>
+              </div>
+            </div>
+
+            {/* Straight-Up Bets */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-orange-50 text-orange-700">5</Badge>
+                Straight-Up Bet on Number
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span>• Select any exact total from 0-27</span>
+                  <Badge variant="outline" className="text-xs">12-500x</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Special Combinations */}
+            <div className="bg-card border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700">6</Badge>
+                Special Combinations
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span>• Pair: Two identical digits (e.g., 011, 010)</span>
+                  <Badge variant="secondary" className="text-xs">3x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Straight: Three consecutive digits (e.g., 123, 890, 910)</span>
+                  <Badge variant="secondary" className="text-xs">10x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Triple: All three digits identical (e.g., 222, 111)</span>
+                  <Badge variant="secondary" className="text-xs">50x</Badge>
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  Note: For straights, order doesn't matter as long as digits form consecutive sequence
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Game Features */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -132,7 +262,7 @@ export function GameIntroDialog({ open, onOpenChange }: GameIntroDialogProps) {
               </div>
               <div className="bg-card border rounded-lg p-3">
                 <div className="font-medium mb-1">🎯 Multiple Bet Types</div>
-                <div className="text-muted-foreground">Basic, combination, and special bets</div>
+                <div className="text-muted-foreground">6 betting categories with various payouts</div>
               </div>
               <div className="bg-card border rounded-lg p-3">
                 <div className="font-medium mb-1">💬 Live Chat</div>
