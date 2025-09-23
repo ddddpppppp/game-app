@@ -17,7 +17,7 @@ interface WithdrawPageProps {
 }
 
 export function WithdrawPage({ onBack }: WithdrawPageProps) {
-  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc" | null>(null)
   const [userBalance, setUserBalance] = useState(0)
   const [amount, setAmount] = useState("")
   const [address, setAddress] = useState("")
@@ -47,6 +47,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
     const { min_amount, max_amount, usdt_fee_rate, cashapp_fee_rate } = withdrawConfig.config
     const usdtFeePercent = (usdt_fee_rate || 0).toFixed(1)
     const cashappFeePercent = (cashapp_fee_rate || 0).toFixed(1)
+    const usdcFeePercent = (usdt_fee_rate || 0).toFixed(1) // Use same fee rate as USDT
 
     return [
       {
@@ -68,6 +69,17 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         minAmount: min_amount,
         maxAmount: max_amount,
         fee: `${usdtFeePercent}%`,
+        feeRate: usdt_fee_rate || 0,
+        processingTime: "10-30 minutes",
+      },
+      {
+        id: "usdc" as const,
+        name: "USDC (Crypto)",
+        icon: Coins,
+        description: "Withdraw to your USDC wallet",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        fee: `${usdcFeePercent}%`,
         feeRate: usdt_fee_rate || 0,
         processingTime: "10-30 minutes",
       },
@@ -118,10 +130,10 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       return
     }
 
-    if (selectedMethod === "usdt" && !address) {
+    if ((selectedMethod === "usdt" || selectedMethod === "usdc") && !address) {
       toast({
         title: "Missing Address",
-        description: "Please enter your USDT wallet address",
+        description: `Please enter your ${selectedMethod.toUpperCase()} wallet address`,
         variant: "destructive",
       })
       return
@@ -273,6 +285,20 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                   <Input
                     id="address"
                     placeholder="Enter your USDT wallet address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {selectedMethod === "usdc" && (
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="mb-2 block">
+                    USDC Wallet Address
+                  </Label>
+                  <Input
+                    id="address"
+                    placeholder="Enter your USDC wallet address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   />

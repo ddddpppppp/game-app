@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 interface CarouselItem {
   id: string
   title: string
-  description: string
+  description: string[]
   image: string
   buttonText: string
 }
@@ -18,7 +18,7 @@ const mockCarouselData: CarouselItem[] = [
   {
     id: "1",
     title: "Welcome Bonus",
-    description: "Get a $20 bonus upon registration！",
+    description: ["Get a $20 bonus upon registration！", "Maximum win of 500x bonus!"],
     image: "/canada28.png",
     buttonText: "Sign Up",
   }
@@ -26,7 +26,9 @@ const mockCarouselData: CarouselItem[] = [
 
 export function GameCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentDescIndex, setCurrentDescIndex] = useState(0)
   const router = useRouter()
+  
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex === mockCarouselData.length - 1 ? 0 : prevIndex + 1))
@@ -34,6 +36,24 @@ export function GameCarousel() {
 
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    const descTimer = setInterval(() => {
+      const currentItem = mockCarouselData[currentIndex]
+      if (currentItem.description.length > 1) {
+        setCurrentDescIndex((prevIndex) => 
+          (prevIndex === currentItem.description.length - 1 ? 0 : prevIndex + 1)
+        )
+      }
+    }, 2000) // 描述文本每2秒切换一次
+
+    return () => clearInterval(descTimer)
+  }, [currentIndex])
+
+  // 当轮播项切换时，重置描述索引
+  useEffect(() => {
+    setCurrentDescIndex(0)
+  }, [currentIndex])
 
   const goToPrevious = () => {
     setCurrentIndex(currentIndex === 0 ? mockCarouselData.length - 1 : currentIndex - 1)
@@ -47,7 +67,7 @@ export function GameCarousel() {
     <div className="relative w-full">
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
-          <div className="relative h-56 md:h-56">
+          <div className="relative h-50 md:h-56">
             <img
               src={mockCarouselData[currentIndex].image || "/placeholder.svg"}
               alt={mockCarouselData[currentIndex].title}
@@ -60,14 +80,14 @@ export function GameCarousel() {
                   {mockCarouselData[currentIndex].title}
                 </h3> */}
                 <p className="text-sm mb-3 text-pretty opacity-95 carousel-tex text-center">
-                  {mockCarouselData[currentIndex].description}
+                  {mockCarouselData[currentIndex].description[currentDescIndex]}
                 </p>
                 <button
-                  className="px-4 py-2 text-sm font-semibold rounded-md shadow-lg transition-colors cursor-pointer"
+                  className="px-2 py-1 text-sm font-semibold rounded-md shadow-lg transition-colors cursor-pointer"
                   style={{
-                    backgroundColor: "rgb(39, 107, 35)",
+                    backgroundColor: "#3080ff",
                     color: "#ffffff",
-                    border: "1px solidrgb(39, 107, 35)",
+                    border: "1px solid #3080ff",
                   }}
                   onClick={() => router.push("/register")}
                 >

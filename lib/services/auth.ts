@@ -188,7 +188,7 @@ class AuthService {
   }
 
   // 创建充值订单
-  async createDeposit(amount: number, method: 'cashapp' | 'usdt'): Promise<DepositResponse> {
+  async createDeposit(amount: number, method: 'cashapp' | 'usdt' | 'usdc_online'): Promise<DepositResponse> {
     const response = await api.post('/api/user/createDeposit', {
       amount,
       method
@@ -197,7 +197,7 @@ class AuthService {
   }
 
   // 创建提现订单
-  async createWithdraw(amount: number, method: 'cashapp' | 'usdt', address?: string): Promise<WithdrawResponse> {
+  async createWithdraw(amount: number, method: 'cashapp' | 'usdt' | 'usdc', address?: string): Promise<WithdrawResponse> {
     const response = await api.post('/api/user/createWithdraw', {
       amount,
       method,

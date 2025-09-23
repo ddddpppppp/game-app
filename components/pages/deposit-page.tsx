@@ -17,7 +17,7 @@ interface DepositPageProps {
 }
 
 export function DepositPage({ onBack }: DepositPageProps) {
-  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc_online" | null>(null)
   const [amount, setAmount] = useState("")
   const [loading, setLoading] = useState(false)
   const [rechargeConfig, setRechargeConfig] = useState<SystemSetting | null>(null)
@@ -70,6 +70,17 @@ export function DepositPage({ onBack }: DepositPageProps) {
         giftRate: usdt_gift_rate,
         processingTime: "5-15 minutes",
       },
+      {
+        id: "usdc_online" as const,
+        name: "USDC Online",
+        icon: Coins,
+        description: "Fast deposit using USDC with online processing",
+        minAmount: min_amount,
+        maxAmount: max_amount,
+        giftRate: usdt_gift_rate,
+        processingTime: "Instant",
+        isOnline: true,
+      },
     ]
   }
 
@@ -117,6 +128,13 @@ export function DepositPage({ onBack }: DepositPageProps) {
           expiredAt: result.expired_at,
         })
         setUsdtDialogOpen(true)
+      } else if (selectedMethod === "usdc_online" && result.payment_url) {
+        // USDC Online: 重定向到支付页面
+        window.open(result.payment_url, '_blank')
+        toast({
+          title: "Redirecting to USDC Online Payment",
+          description: "Please complete the payment in the new window",
+        })
       }
 
       // 刷新交易记录
@@ -194,13 +212,26 @@ export function DepositPage({ onBack }: DepositPageProps) {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{method.name}</h3>
+                        <h3 className="font-semibold">
+                          {method.id === "usdc_online" ? (
+                            <>
+                              USDC <span className="text-accent font-bold">Online</span>
+                            </>
+                          ) : (
+                            method.name
+                          )}
+                        </h3>
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${method.giftRate > 0 ? 'bg-green-100 text-green-800' : ''}`}
                         >
                           {getGiftText(method.giftRate)}
                         </Badge>
+                        {method.id === "usdc_online" && (
+                          <Badge variant="secondary" className="text-xs bg-accent/20 text-accent border-accent">
+                            Fast
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">{method.description}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
