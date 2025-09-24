@@ -44,8 +44,26 @@ function CountdownDisplay({ endAt }: { endAt: string | null }) {
 
   if (!endAt) {
     return (
-      <div className="w-full h-24 bg-muted flex items-center justify-center">
-        <span className="text-muted-foreground text-sm">Loading...</span>
+      <div 
+        className="w-full h-24 flex flex-col items-center justify-center text-white relative"
+        style={{
+          backgroundImage: 'url(/canada28-1.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* 添加半透明遮罩以确保文字可读性 */}
+        <div className="absolute inset-0 bg-black/40 rounded-t-lg"></div>
+        <div className="relative z-10 flex flex-col items-center justify-center">
+          <div className="text-xs opacity-90 mb-1 font-medium">Loading...</div>
+          <div className="text-lg font-mono font-bold tracking-wider drop-shadow-lg">
+            --:--
+          </div>
+          <div className="text-xs opacity-90 mt-1 font-medium">
+            Please wait
+          </div>
+        </div>
       </div>
     )
   }
@@ -141,7 +159,6 @@ export function GameGrid() {
           <Card key={game.id} className="overflow-hidden hover:shadow-lg transition-shadow py-0 rounded-sm">
             <CardContent className="p-0">
               <div className="relative">
-                {/* 替换图片为倒计时 */}
                 <CountdownDisplay endAt={currentDraw?.end_at || null} />
                 <div className="absolute top-2 left-2 flex gap-1">
                   {game.isHot && (
