@@ -17,7 +17,7 @@ interface WithdrawPageProps {
 }
 
 export function WithdrawPage({ onBack }: WithdrawPageProps) {
-  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc" | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc_online" | null>(null)
   const [userBalance, setUserBalance] = useState(0)
   const [amount, setAmount] = useState("")
   const [address, setAddress] = useState("")
@@ -44,10 +44,10 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
   const getWithdrawMethods = () => {
     if (!withdrawConfig) return []
 
-    const { min_amount, max_amount, usdt_fee_rate, cashapp_fee_rate } = withdrawConfig.config
+    const { min_amount, max_amount, usdt_fee_rate, cashapp_fee_rate, usdc_online_fee_rate } = withdrawConfig.config
     const usdtFeePercent = (usdt_fee_rate || 0).toFixed(1)
     const cashappFeePercent = (cashapp_fee_rate || 0).toFixed(1)
-    const usdcFeePercent = (usdt_fee_rate || 0).toFixed(1) // Use same fee rate as USDT
+    const usdcFeePercent = (usdc_online_fee_rate || 0).toFixed(1) // Use same fee rate as USDT
 
     return [
       {
@@ -59,7 +59,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         maxAmount: max_amount,
         fee: `${cashappFeePercent}%`,
         feeRate: cashapp_fee_rate || 0,
-        processingTime: "1-3 business days",
+        processingTime: "1-3 hours",
       },
       {
         id: "usdt" as const,
@@ -70,10 +70,10 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         maxAmount: max_amount,
         fee: `${usdtFeePercent}%`,
         feeRate: usdt_fee_rate || 0,
-        processingTime: "10-30 minutes",
+        processingTime: "1-5 minutes",
       },
       {
-        id: "usdc" as const,
+        id: "usdc_online" as const,
         name: "USDC (Crypto)",
         icon: Coins,
         description: "Withdraw to your USDC wallet",
@@ -81,7 +81,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
         maxAmount: max_amount,
         fee: `${usdcFeePercent}%`,
         feeRate: usdt_fee_rate || 0,
-        processingTime: "10-30 minutes",
+        processingTime: "1-5 minutes",
       },
     ]
   }
@@ -130,7 +130,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       return
     }
 
-    if ((selectedMethod === "usdt" || selectedMethod === "usdc") && !address) {
+    if ((selectedMethod === "usdt" || selectedMethod === "usdc_online") && !address) {
       toast({
         title: "Missing Address",
         description: `Please enter your ${selectedMethod.toUpperCase()} wallet address`,
@@ -291,7 +291,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
                 </div>
               )}
 
-              {selectedMethod === "usdc" && (
+              {selectedMethod === "usdc_online" && (
                 <div className="space-y-2">
                   <Label htmlFor="address" className="mb-2 block">
                     USDC Wallet Address

@@ -52,7 +52,17 @@ export function DepositPage({ onBack }: DepositPageProps) {
   const getPaymentMethods = () => {
     if (!rechargeConfig) return []
 
-    const { min_amount, max_amount, cashapp_gift_rate, usdt_gift_rate } = rechargeConfig.config
+    const { 
+      usdt_min_amount, 
+      usdt_max_amount, 
+      cashapp_min_amount, 
+      cashapp_max_amount, 
+      usdc_online_min_amount, 
+      usdc_online_max_amount,
+      cashapp_gift_rate, 
+      usdt_gift_rate,
+      usdc_online_gift_rate 
+    } = rechargeConfig.config
 
     return [
       {
@@ -60,9 +70,9 @@ export function DepositPage({ onBack }: DepositPageProps) {
         name: "USDC Online",
         icon: Coins,
         description: "Use fiat currency to buy USDC directly and deposit it into your wallet.",
-        minAmount: min_amount,
-        maxAmount: max_amount,
-        giftRate: usdt_gift_rate,
+        minAmount: usdc_online_min_amount,
+        maxAmount: usdc_online_max_amount,
+        giftRate: usdc_online_gift_rate,
         processingTime: "Instant",
         isOnline: true,
       },
@@ -71,18 +81,18 @@ export function DepositPage({ onBack }: DepositPageProps) {
         name: "USDT (Crypto)",
         icon: Coins,
         description: "Deposit using USDT cryptocurrency",
-        minAmount: min_amount,
-        maxAmount: max_amount,
+        minAmount: usdt_min_amount,
+        maxAmount: usdt_max_amount,
         giftRate: usdt_gift_rate,
-        processingTime: "5-15 minutes",
+        processingTime: "1-5 minutes",
       },
       {
         id: "cashapp" as const,
         name: "CashApp",
         icon: Smartphone,
         description: "Instant deposit via CashApp",
-        minAmount: min_amount,
-        maxAmount: max_amount,
+        minAmount: cashapp_min_amount,
+        maxAmount: cashapp_max_amount,
         giftRate: cashapp_gift_rate,
         processingTime: "Instant",
       },
@@ -361,7 +371,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
 
             {/* Quick Amount Buttons */}
             <div className="grid grid-cols-4 gap-2">
-              {[50, 100, 250, 500].map((quickAmount) => (
+              {[20, 50, 100, 300].map((quickAmount) => (
                 <Button
                   key={quickAmount}
                   variant="outline"

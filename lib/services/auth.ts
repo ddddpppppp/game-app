@@ -116,12 +116,21 @@ export interface SystemSetting {
   title: string
   description: string
   config: {
-    min_amount: number
-    max_amount: number
+    // 分离的支付方式限额配置
+    usdt_min_amount: number
+    usdt_max_amount: number
+    cashapp_min_amount: number
+    cashapp_max_amount: number
+    usdc_online_min_amount: number
+    usdc_online_max_amount: number
+    // 赠送比例配置
     usdt_gift_rate: number
     cashapp_gift_rate: number
+    usdc_online_gift_rate: number
+    // 其他配置
     usdt_fee_rate?: number
     cashapp_fee_rate?: number
+    usdc_online_fee_rate?: number
     daily_limit?: number
     [key: string]: any
   }
@@ -197,7 +206,7 @@ class AuthService {
   }
 
   // 创建提现订单
-  async createWithdraw(amount: number, method: 'cashapp' | 'usdt' | 'usdc', address?: string): Promise<WithdrawResponse> {
+  async createWithdraw(amount: number, method: 'cashapp' | 'usdt' | 'usdc_online', address?: string): Promise<WithdrawResponse> {
     const response = await api.post('/api/user/createWithdraw', {
       amount,
       method,
