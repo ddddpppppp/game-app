@@ -199,6 +199,7 @@ export function Canada28Game() {
           title: "Error",
           description: "Failed to load game data",
           variant: "destructive",
+          duration: 5000,
         })
       }
     } finally {
@@ -220,6 +221,7 @@ export function Canada28Game() {
         title: "Error",
         description: "Failed to load messages",
         variant: "destructive",
+        duration: 5000,
       })
     }
   }
@@ -246,6 +248,7 @@ export function Canada28Game() {
         title: "Error",
         description: "Failed to load draw history",
         variant: "destructive",
+        duration: 5000,
       })
       return null
     } finally {
@@ -278,6 +281,7 @@ export function Canada28Game() {
         title: "Error",
         description: "Failed to load bet history",
         variant: "destructive",
+        duration: 5000,
       })
     } finally {
       setBetHistoryLoading(false)
@@ -427,15 +431,14 @@ export function Canada28Game() {
         })
         
         // 倒计时提醒逻辑
-        if (prev === 33 || prev === 6 || prev === 5 || prev === 4) {
-          playWarningSound()
-        }
         if (prev === 31) {
           // 30秒警告 - 立即触发
+          playWarningSound()
           setIsTimeWarning(true)
           setTimeout(() => setIsTimeWarning(false), 1000)
         } else if (prev <= 4 && prev > 0) {
           // 最后3秒严重警告 - 立即触发
+          playWarningSound()
           setIsTimeCritical(true)
           setTimeout(() => setIsTimeCritical(false), 800)
         }
@@ -519,6 +522,7 @@ export function Canada28Game() {
         title: "Drawing in Progress",
         description: "Please wait for the current draw to complete.",
         variant: "destructive",
+        duration: 4000,
       })
       return
     }
@@ -528,6 +532,7 @@ export function Canada28Game() {
         title: "Betting Closed",
         description: "Betting is closed 30 seconds before the draw.",
         variant: "destructive",
+        duration: 4000,
       })
       return
     }
@@ -537,6 +542,7 @@ export function Canada28Game() {
         title: "Betting in Progress",
         description: "Please wait for the current bet to complete.",
         variant: "destructive",
+        duration: 4000,
       })
       return
     }
@@ -546,6 +552,7 @@ export function Canada28Game() {
         title: "Invalid Bet",
         description: "Please select a bet type and enter a valid amount.",
         variant: "destructive",
+        duration: 4000,
       })
       return
     }
@@ -556,6 +563,7 @@ export function Canada28Game() {
         title: "Insufficient Balance",
         description: "You don't have enough balance for this bet.",
         variant: "destructive",
+        duration: 4000,
       })
       return
     }
@@ -586,6 +594,7 @@ export function Canada28Game() {
       toast({
         title: "Bet Placed Successfully!",
         description: result.message,
+        duration: 3000, // 3秒后自动关闭
       })
     } catch (error: any) {
       console.error("Failed to place bet:", error)
@@ -593,6 +602,7 @@ export function Canada28Game() {
         title: "Bet Failed",
         description: error.message || "Failed to place bet. Please try again.",
         variant: "destructive",
+        duration: 5000,
       })
     } finally {
       setBetting(false)
