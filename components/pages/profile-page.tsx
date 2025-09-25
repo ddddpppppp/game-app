@@ -32,7 +32,7 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
 
   // 使用真实用户数据，如果没有则使用默认值
   const userData = {
-    avatar: user?.avatar || "/gaming-avatar-user.jpg",
+    avatar: user?.avatar || "/keno_logo.png",
     nickname: user?.name || "Player",
     email: user?.email || "player@example.com",
     level: user?.level || 1, // 这些字段可能需要从其他 API 获取
@@ -134,7 +134,7 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
           <CardContent className="px-6 py-0 pt-6 pb-6">
             <div className="flex items-center gap-4 mb-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={userData.avatar || "/placeholder.svg"} />
+                <AvatarImage src={userData.avatar || "/keno_logo.png"} />
                 <AvatarFallback>
                   <User className="h-8 w-8" />
                 </AvatarFallback>

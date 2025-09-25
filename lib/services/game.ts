@@ -116,6 +116,12 @@ export interface DrawHistoryData {
   has_more: boolean
 }
 
+export interface placeCanada28BetReq {
+  bets: {
+    bet_type_id: number
+    amount: number
+  }[]
+}
 // 通用API服务（对应后端 Game.php 控制器）
 class GameService {
   // 获取Canada28游戏数据（包含玩法配置和当前期数）
@@ -143,11 +149,8 @@ class GameService {
   }
 
   // Canada28投注
-  async placeCanada28Bet(betTypeId: number, amount: number): Promise<BetResponse> {
-    const response = await api.post('/api/game/placeCanada28Bet', {
-      bet_type_id: betTypeId,
-      amount: amount
-    })
+  async placeCanada28Bet(bets: placeCanada28BetReq): Promise<BetResponse> {
+    const response = await api.post('/api/game/placeCanada28Bet', bets)
     return response.data
   }
 

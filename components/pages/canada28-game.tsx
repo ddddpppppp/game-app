@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Bot, User, ArrowLeft, HelpCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -22,6 +21,18 @@ import {
 import { TimeUtils } from "@/lib/utils/time"
 import { WebSocketManager } from "@/lib/utils/websocket"
 import { GameIntroDialog, shouldShowGameIntro } from "@/components/game-intro-dialog"
+import { BettingSystem } from "@/components/betting-system"
+import { ChipOverlay } from "@/components/chip-overlay"
+
+// 筹码配置
+const chipConfigs = [
+  { id: 1, value: 0.5, image: "/coin/01.png", color: "red" },
+  { id: 2, value: 1, image: "/coin/02.png", color: "blue" },
+  { id: 3, value: 5, image: "/coin/03.png", color: "green" },
+  { id: 4, value: 10, image: "/coin/04.png", color: "yellow" },
+  { id: 5, value: 50, image: "/coin/05.png", color: "purple" },
+  { id: 6, value: 100, image: "/coin/06.png", color: "orange" },
+]
 
 // 投注分类
 const betCategories = [
@@ -31,25 +42,6 @@ const betCategories = [
   { id: "sum", name: "The Sum", icon: "🔢" },
 ]
 
-const baseQuickAmounts = [1, 5, 10, 50, 100]
-
-// 倍数级别：1, 2, 4, 8, 16, 32, 64
-const multiplierLevels = [1, 2, 4, 8, 16, 32, 64]
-
-// 从本地存储获取倍数级别索引
-const getStoredMultiplierIndex = () => {
-  if (typeof window === 'undefined') return 0
-  const stored = localStorage.getItem('canada28-multiplier-index')
-  const index = stored ? Number.parseInt(stored) : 0
-  return Math.max(0, Math.min(multiplierLevels.length - 1, index)) // 确保在0-7范围内
-}
-
-// 保存倍数级别索引到本地存储
-const saveMultiplierIndex = (index: number) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('canada28-multiplier-index', index.toString())
-  }
-}
 
 // 生成随机数字
 const generateRandomNumbers = () => {
@@ -63,6 +55,12 @@ export function Canada28Game() {
 
   // 滚动容器ref
   const messagesScrollRef = useRef<HTMLDivElement>(null)
+  
+  // 投注系统引用
+  const bettingSystemRef = useRef<{
+    handleBetTypeClick: (betType: BetType, targetElement: HTMLElement) => void
+    clearInternalBets: () => void
+  }>(null)
 
   // API数据状态
   const [gameData, setGameData] = useState<GameData | null>(null)
@@ -78,15 +76,112 @@ export function Canada28Game() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false) // 刷新状态，不阻塞UI
   const [betting, setBetting] = useState(false) // 投注状态
-  const [selectedBetType, setSelectedBetType] = useState<BetType | null>(null)
-  const [betAmount, setBetAmount] = useState("")
-  const [showRules, setShowRules] = useState(false)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [showGameIntro, setShowGameIntro] = useState(false)
   const [activeTab, setActiveTab] = useState<"bet" | "bet-history" | "draw-history" | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [multiplierIndex, setMultiplierIndex] = useState(0)
-  const [quickAmounts, setQuickAmounts] = useState(baseQuickAmounts)
+  
+  // 筹码状态
+  interface BetPosition {
+    betTypeId: string
+    betTypeName: string
+    amount: number
+    chipImage: string
+    x: number
+    y: number
+  }
+  const [betPositions, setBetPositions] = useState<BetPosition[]>([])
+  const [sumBetPositions, setSumBetPositions] = useState<BetPosition[]>([])
+  const betAreaRef = useRef<HTMLDivElement>(null)
+  const sumAreaRef = useRef<HTMLDivElement>(null)
+  const [selectedChip, setSelectedChip] = useState(0.5)
+  const [multiplier, setMultiplier] = useState(1)
+  
+  // 获取筹码图片
+  const getChipImage = (value: number) => {
+    const baseValue = value / multiplier
+    const config = chipConfigs.find(chip => chip.value === baseValue)
+    return config?.image || chipConfigs[0].image
+  }
+  
+  // 手动提交所有投注
+  const submitAllBets = async () => {
+    const allBets = [
+      ...betPositions.map(pos => ({ betTypeId: pos.betTypeId, amount: pos.amount })),
+      ...sumBetPositions.map(pos => ({ betTypeId: pos.betTypeId, amount: pos.amount }))
+    ]
+    
+    if (allBets.length > 0) {
+      await handleBatchBets(allBets)
+      // 提交成功后清空投注（包括betting-system内部状态）
+      setBetPositions([])
+      setSumBetPositions([])
+      // 通过betting-system的清空方法清空内部状态
+      if (bettingSystemRef.current) {
+        bettingSystemRef.current.clearInternalBets()
+      }
+    }
+  }
+
+  // 清除所有投注
+  const clearAllBets = () => {
+    setBetPositions([])
+    setSumBetPositions([])
+      // 同时清空betting-system内部状态
+    if (bettingSystemRef.current) {
+      bettingSystemRef.current.clearInternalBets()
+    }
+  }
+  
+  // 翻倍所有投注
+  const doubleAllBets = () => {
+    setBetPositions(prev => prev.map(pos => ({
+      ...pos,
+      amount: pos.amount * 2
+    })))
+    setSumBetPositions(prev => prev.map(pos => ({
+      ...pos,
+      amount: pos.amount * 2
+    })))
+  }
+  
+  // 撤回最后一个投注
+  const undoLastBet = () => {
+    const actualChipValue = selectedChip * multiplier
+    
+    // 根据当前区域撤回对应的投注
+    if (selectedCategory === "sum") {
+      setSumBetPositions(prev => {
+        if (prev.length === 0) return prev
+        
+        const newPositions = [...prev]
+        const lastPosition = newPositions[newPositions.length - 1]
+        
+        if (lastPosition.amount > actualChipValue) {
+          lastPosition.amount -= actualChipValue
+        } else {
+          newPositions.pop()
+        }
+        
+        return newPositions
+      })
+    } else {
+      setBetPositions(prev => {
+        if (prev.length === 0) return prev
+        
+        const newPositions = [...prev]
+        const lastPosition = newPositions[newPositions.length - 1]
+        
+        if (lastPosition.amount > actualChipValue) {
+          lastPosition.amount -= actualChipValue
+        } else {
+          newPositions.pop()
+        }
+        
+        return newPositions
+      })
+    }
+  }
 
   // 计时器状态
   const [timeLeft, setTimeLeft] = useState(0)
@@ -352,13 +447,6 @@ export function Canada28Game() {
     }
   }
 
-  // 初始化倍数从本地存储
-  useEffect(() => {
-    const storedIndex = getStoredMultiplierIndex()
-    setMultiplierIndex(storedIndex)
-    const multiplier = multiplierLevels[storedIndex]
-    setQuickAmounts(baseQuickAmounts.map(amount => amount * multiplier))
-  }, [])
 
   // 初始化游戏数据和消息
   useEffect(() => {
@@ -513,24 +601,25 @@ export function Canada28Game() {
 
   // 检查是否可以下注（30秒内停止下注）
   const canPlaceBet = () => {
+    let totalBetAmount = 0
+    betPositions.forEach(position => {
+      totalBetAmount += position.amount
+    })
+    sumBetPositions.forEach(position => {
+      totalBetAmount += position.amount
+    })
+    if (totalBetAmount >= balance) {
+      return false
+    }
     return timeLeft > 30 && !isDrawing
   }
 
-  const handlePlaceBet = async () => {
+  // Handle batch betting
+  const handleBatchBets = async (bets: Array<{ betTypeId: string; amount: number }>) => {
     if (isDrawing) {
       toast({
         title: "Drawing in Progress",
         description: "Please wait for the current draw to complete.",
-        variant: "destructive",
-        duration: 4000,
-      })
-      return
-    }
-
-    if (timeLeft <= 30) {
-      toast({
-        title: "Betting Closed",
-        description: "Betting is closed 30 seconds before the draw.",
         variant: "destructive",
         duration: 4000,
       })
@@ -547,21 +636,21 @@ export function Canada28Game() {
       return
     }
 
-    if (!selectedBetType || !betAmount || Number.parseFloat(betAmount) <= 0) {
+    if (bets.length === 0) {
       toast({
-        title: "Invalid Bet",
-        description: "Please select a bet type and enter a valid amount.",
+        title: "No Bets",
+        description: "Please select betting options first.",
         variant: "destructive",
         duration: 4000,
       })
       return
     }
 
-    const amount = Number.parseFloat(betAmount)
-    if (amount > balance) {
+    const totalAmount = bets.reduce((sum, bet) => sum + bet.amount, 0)
+    if (totalAmount > balance) {
       toast({
         title: "Insufficient Balance",
-        description: "You don't have enough balance for this bet.",
+        description: "Your balance is not enough to cover all bets.",
         variant: "destructive",
         duration: 4000,
       })
@@ -571,36 +660,37 @@ export function Canada28Game() {
     try {
       setBetting(true)
 
-      // 调用投注API
-      const result = await gameService.placeCanada28Bet(selectedBetType.id, amount)
+      // 依次提交所有投注
+      try {
+        await gameService.placeCanada28Bet({ bets: bets.map(bet => ({ bet_type_id: Number.parseInt(bet.betTypeId), amount: bet.amount })) })
+        toast({
+          title: "Bets Submitted!",
+          description: `Success placed bets`,
+          duration: 3000,
+        })
+      } catch (error: any) {
+        toast({
+          title: "Betting Failed",
+          description: error.message || "All bets failed to place.",
+          variant: "destructive",
+          duration: 5000,
+        })
+      }
 
-      // 刷新用户信息以更新余额（仅当已登录时）
+      // Refresh user info to update balance (only when logged in)
       if (isAuthenticated) {
         refreshUserInfo().catch(console.error)
       }
 
-      // 如果当前在投注历史页面，刷新投注历史
+      // If currently on bet history page, refresh bet history
       if (activeTab === "bet-history") {
         fetchBetHistory()
       }
-
-      // Reset bet selection
-      setSelectedBetType(null)
-      setBetAmount("")
-      if (selectedCategory === "sum") {
-        setSelectedCategory(null)
-      }
-
-      toast({
-        title: "Bet Placed Successfully!",
-        description: result.message,
-        duration: 3000, // 3秒后自动关闭
-      })
     } catch (error: any) {
-      console.error("Failed to place bet:", error)
+      console.error("Batch betting failed:", error)
       toast({
-        title: "Bet Failed",
-        description: error.message || "Failed to place bet. Please try again.",
+        title: "Betting Failed",
+        description: error.message || "Failed to place bets. Please try again.",
         variant: "destructive",
         duration: 5000,
       })
@@ -608,6 +698,57 @@ export function Canada28Game() {
       setBetting(false)
     }
   }
+
+  // 处理投注类型点击
+  const handleBetTypeClick = (betType: BetType, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!canPlaceBet() || !isAuthenticated) return
+    
+    const targetElement = event.currentTarget
+    // 根据当前选择的类别决定使用哪个ref
+    const betAreaElement = selectedCategory === "sum" ? sumAreaRef.current : betAreaRef.current
+    if (!betAreaElement || !targetElement) return
+
+    // 计算实际投注金额
+    const actualChipValue = selectedChip * multiplier
+
+    // 获取目标元素相对于投注区域的位置（包含滚动偏移）
+    const betAreaRect = betAreaElement.getBoundingClientRect()
+    const targetRect = targetElement.getBoundingClientRect()
+    
+    const relativeX = targetRect.left - betAreaRect.left + targetRect.width / 2
+    const relativeY = targetRect.top - betAreaRect.top + betAreaElement.scrollTop + targetRect.height / 2
+
+    // 添加或更新投注位置 - 根据区域选择对应的状态
+    const isSum = selectedCategory === "sum"
+    const setPositions = isSum ? setSumBetPositions : setBetPositions
+    
+    setPositions(prev => {
+      const existingIndex = prev.findIndex(pos => pos.betTypeId === betType.id.toString())
+      const newPosition: BetPosition = {
+        betTypeId: betType.id.toString(),
+        betTypeName: betType.type_name,
+        amount: existingIndex >= 0 ? prev[existingIndex].amount + actualChipValue : actualChipValue,
+        chipImage: getChipImage(actualChipValue),
+        x: relativeX,
+        y: relativeY + 10,
+      }
+
+      if (existingIndex >= 0) {
+        const updated = [...prev]
+        updated[existingIndex] = newPosition
+        return updated
+      } else {
+        return [...prev, newPosition]
+      }
+    })
+
+    // 如果还有BettingSystem的飞行动画，也调用它
+    if (bettingSystemRef.current?.handleBetTypeClick) {
+      bettingSystemRef.current.handleBetTypeClick(betType, targetElement)
+    }
+  }
+
+  const currentPeriod = gameData?.current_draw?.period_number || "N/A"
 
   if (loading) {
     return (
@@ -631,8 +772,6 @@ export function Canada28Game() {
     )
   }
 
-  const currentPeriod = gameData.current_draw?.period_number || "N/A"
-
   return (
     <div className="min-h-screen bg-background relative rounded-b-lg overflow-hidden">
       <style jsx>{`
@@ -645,7 +784,7 @@ export function Canada28Game() {
         }
 
       `}</style>
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-4 z-30 shadow-lg rounded-b-lg">
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-4 z-19 shadow-lg rounded-b-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
               <Button
@@ -743,6 +882,8 @@ export function Canada28Game() {
                 </div>
               </div>
             </div>
+            {/* 游戏介绍对话框按钮 */}
+            <HelpCircle className="w-5 h-5 mr-2" onClick={() => setShowGameIntro(true)} />
             {/* <div className="w-6 h-6 flex items-center justify-center">
               <svg className="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -861,10 +1002,10 @@ export function Canada28Game() {
           </div>
         ) : activeTab === "bet" ? (
           <div className="p-4 space-y-4">
-            {!selectedBetType && !selectedCategory ? (
-              <div className="max-h-[60vh] overflow-y-auto">
+            {!selectedCategory ? (
+              <div ref={betAreaRef} className="max-h-[60vh] overflow-y-auto relative">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">Place Your Bet</h3>
+                  <h3 className="font-semibold text-foreground">click bet options <span className="text-xs text-gray-500">${user?.balance.toFixed(2)}</span></h3>
                   <Button variant="ghost" size="sm" onClick={() => setActiveTab(null)} className="text-foreground">
                     Close
                   </Button>
@@ -874,7 +1015,7 @@ export function Canada28Game() {
                 {timeLeft <= 30 && !isDrawing && (
                   <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
                     <p className="text-sm font-medium text-orange-800">
-                      🚫 Betting is closed 30 seconds before the draw
+                      🚫 Betting closed - stops 30 seconds before draw
                     </p>
                   </div>
                 )}
@@ -884,10 +1025,9 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">Basic Bets</h4>
                   <div className="grid grid-cols-4 gap-2">
                     {getBetsByCategory("basic").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet() && isAuthenticated
                       const specialOdds = gameService.getSpecialOdds(bet, gameData?.dynamic_odds_rules)
                       const oddsDisplay = gameService.formatOddsWithSpecial(bet.odds, specialOdds)
-                      // const hasSpecialOdds = specialOdds && specialOdds !== bet.odds
                       
                       return (
                         <Button
@@ -896,14 +1036,10 @@ export function Canada28Game() {
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
                             isEnabled
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-card text-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
-                          onClick={() => {
-                            if (isEnabled) {
-                              setSelectedBetType(bet)
-                            }
-                          }}
+                          onClick={(e) => handleBetTypeClick(bet, e)}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
                           <span className={`text-xs mt-1 text-muted-foreground`}>
@@ -920,10 +1056,9 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">Combination Bets</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {getBetsByCategory("combination").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet() && isAuthenticated
                       const specialOdds = gameService.getSpecialOdds(bet, gameData?.dynamic_odds_rules)
                       const oddsDisplay = gameService.formatOddsWithSpecial(bet.odds, specialOdds)
-                      // const hasSpecialOdds = specialOdds && specialOdds !== bet.odds
                       
                       return (
                         <Button
@@ -932,17 +1067,13 @@ export function Canada28Game() {
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
                             isEnabled
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-card text-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
-                          onClick={() => {
-                            if (isEnabled) {
-                              setSelectedBetType(bet)
-                            }
-                          }}
+                          onClick={(e) => handleBetTypeClick(bet, e)}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
-                          <span className={`text-xs mt-1 text-muted-foreground}`}>
+                          <span className={`text-xs mt-1 text-muted-foreground`}>
                             {oddsDisplay}
                           </span>
                         </Button>
@@ -956,7 +1087,7 @@ export function Canada28Game() {
                   <h4 className="text-sm font-medium text-foreground mb-2">Special Bets</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {getBetsByCategory("special").map((bet) => {
-                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                      const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet() && isAuthenticated
                       return (
                         <Button
                           key={bet.id}
@@ -964,14 +1095,10 @@ export function Canada28Game() {
                           disabled={!isEnabled}
                           className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
                             isEnabled
-                              ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-card text-foreground"
                               : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                           }`}
-                          onClick={() => {
-                            if (isEnabled) {
-                              setSelectedBetType(bet)
-                            }
-                          }}
+                          onClick={(e) => handleBetTypeClick(bet, e)}
                         >
                           <span className="font-bold text-xs break-words">{bet.type_name}</span>
                           <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
@@ -981,15 +1108,15 @@ export function Canada28Game() {
                   </div>
                 </div>
 
-                {/* The Sum - 需要点击进入 */}
+                {/* The Sum - click to enter */}
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-foreground mb-2">The Sum</h4>
                   <Button
                     variant="outline"
-                    disabled={!canPlaceBet()}
+                    disabled={!canPlaceBet() || !isAuthenticated}
                     className={`w-full h-auto min-h-[50px] p-3 flex flex-col justify-center items-center text-center ${
-                      canPlaceBet()
-                        ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                      canPlaceBet() && isAuthenticated
+                        ? "bg-card text-foreground"
                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     }`}
                     onClick={() => setSelectedCategory("sum")}
@@ -998,9 +1125,12 @@ export function Canada28Game() {
                     <span className="font-bold text-xs">Select Sum (0-27)</span>
                   </Button>
                 </div>
+                
+                {/* 筹码覆盖层 */}
+                <ChipOverlay betPositions={betPositions} containerRef={betAreaRef} />
               </div>
-            ) : selectedCategory === "sum" && !selectedBetType ? (
-              <div>
+            ) : selectedCategory === "sum" ? (
+              <div ref={sumAreaRef} className="relative">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">The Sum (0-27)</h3>
                   <Button
@@ -1013,9 +1143,9 @@ export function Canada28Game() {
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 p-2 max-h-80 overflow-y-auto">
+                <div className="grid grid-cols-4 gap-2 p-2 overflow-y-auto">
                   {getBetsByCategory("sum").map((bet) => {
-                    const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet()
+                    const isEnabled = gameService.isBetTypeEnabled(bet) && canPlaceBet() && isAuthenticated
                     return (
                       <Button
                         key={bet.id}
@@ -1023,10 +1153,10 @@ export function Canada28Game() {
                         disabled={!isEnabled}
                         className={`h-auto min-h-[45px] p-2 flex flex-col justify-center items-center text-center ${
                           isEnabled
-                            ? "bg-card text-foreground hover:bg-accent hover:text-accent-foreground"
+                            ? "bg-card text-foreground"
                             : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                         }`}
-                        onClick={() => isEnabled && setSelectedBetType(bet)}
+                        onClick={(e) => handleBetTypeClick(bet, e)}
                       >
                         <span className="font-bold text-xs break-words">{bet.type_name}</span>
                         <span className="text-xs text-muted-foreground mt-1">{gameService.formatOdds(bet.odds)}</span>
@@ -1034,164 +1164,11 @@ export function Canada28Game() {
                     )
                   })}
                 </div>
+                
+                {/* 筹码覆盖层 */}
+                <ChipOverlay betPositions={sumBetPositions} containerRef={sumAreaRef} />
               </div>
-            ) : (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{selectedBetType?.type_name}</h3>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">
-                        Multiplier: {selectedBetType ? (() => {
-                          const specialOdds = gameService.getSpecialOdds(selectedBetType, gameData?.dynamic_odds_rules)
-                          return gameService.formatOddsWithSpecial(selectedBetType.odds, specialOdds)
-                        })() : ""}
-                      </p>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newIndex = Math.min(multiplierLevels.length - 1, multiplierIndex + 1)
-                            if (newIndex !== multiplierIndex) {
-                              setMultiplierIndex(newIndex)
-                              const newMultiplier = multiplierLevels[newIndex]
-                              setQuickAmounts(baseQuickAmounts.map(amount => amount * newMultiplier))
-                              saveMultiplierIndex(newIndex)
-                              // 更新当前投注金额
-                              const currentAmount = Number.parseFloat(betAmount) || 0
-                              if (currentAmount > 0) {
-                                setBetAmount((currentAmount * 2).toString())
-                              }
-                            }
-                          }}
-                          disabled={multiplierIndex >= multiplierLevels.length - 1}
-                          className="h-6 w-6 p-0 text-xs rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 disabled:opacity-50"
-                        >
-                          ×
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newIndex = Math.max(0, multiplierIndex - 1)
-                            if (newIndex !== multiplierIndex) {
-                              setMultiplierIndex(newIndex)
-                              const newMultiplier = multiplierLevels[newIndex]
-                              setQuickAmounts(baseQuickAmounts.map(amount => amount * newMultiplier))
-                              saveMultiplierIndex(newIndex)
-                              // 更新当前投注金额
-                              const currentAmount = Number.parseFloat(betAmount) || 0
-                              if (currentAmount > 0) {
-                                setBetAmount(Math.max(1, currentAmount / 2).toString())
-                              }
-                            }
-                          }}
-                          disabled={multiplierIndex <= 0}
-                          className="h-6 w-6 p-0 text-xs rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-600 disabled:opacity-50"
-                        >
-                          ÷
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedBetType(null)
-                      if (selectedCategory === "sum") {
-                        setSelectedCategory(null)
-                      }
-                    }}
-                    className="text-foreground"
-                  >
-                    Back
-                  </Button>
-                </div>
-
-                {/* Betting Status */}
-                {timeLeft <= 30 && !isDrawing && (
-                  <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                    <p className="text-sm font-medium text-orange-800">
-                      🚫 Betting is closed 30 seconds before the draw
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    {quickAmounts.map((amount) => (
-                      <Button
-                        key={amount}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setBetAmount(amount.toString())}
-                        className="flex-1 text-foreground"
-                      >
-                        ${amount}
-                      </Button>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Enter amount"
-                      value={betAmount}
-                      onChange={(e) => setBetAmount(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button onClick={handlePlaceBet} className="px-6" disabled={isDrawing || betting || !canPlaceBet()}>
-                      {betting ? "Betting..." : isDrawing ? "Drawing..." : timeLeft <= 30 ? "Betting Closed" : "Bet"}
-                    </Button>
-                  </div>
-
-                  {/* Balance and potential winnings display */}
-                  <div className="bg-muted/50 rounded-lg p-3 border space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Current Balance:</span>
-                      <span className="font-semibold text-foreground">${balance.toFixed(2)}</span>
-                    </div>
-
-                    {betAmount && Number.parseFloat(betAmount) > 0 && selectedBetType && (
-                      <>
-                        <div className="border-t border-border pt-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Potential Winnings:</span>
-                            <span className="font-semibold text-green-600">
-                              $
-                              {(() => {
-                                // 使用正常赔率计算潜在奖金，特殊赔率只是显示参考
-                                return gameService.calculatePotentialWinnings(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)
-                              })()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                            <span>Your bet: ${Number.parseFloat(betAmount).toFixed(2)}</span>
-                            <span>
-                              Profit: $
-                              {(() => {
-                                // 使用正常赔率计算利润，特殊赔率只是显示参考
-                                return gameService.calculateProfit(Number.parseFloat(betAmount), selectedBetType.odds).toFixed(2)
-                              })()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Remaining balance:</span>
-                          <span
-                            className={`font-medium ${balance - Number.parseFloat(betAmount) < 0 ? "text-red-500" : "text-foreground"}`}
-                          >
-                            ${(balance - Number.parseFloat(betAmount)).toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         ) : activeTab === "bet-history" ? (
           <div className="p-4">
@@ -1375,20 +1352,27 @@ export function Canada28Game() {
         </DialogContent>
       </Dialog>
 
-      {/* 固定帮助按钮 */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 p-0 rounded-full bg-background/80 backdrop-blur-sm border-border shadow-lg hover:bg-accent hover:text-accent-foreground"
-        onClick={() => setShowGameIntro(true)}
-      >
-        <HelpCircle className="w-5 h-5" />
-      </Button>
+
 
       {/* 游戏介绍对话框 */}
       <GameIntroDialog 
         open={showGameIntro} 
         onOpenChange={setShowGameIntro} 
+      />
+
+      {/* 投注系统 */}
+      <BettingSystem
+        ref={bettingSystemRef}
+        onBetsReady={handleBatchBets}
+        canPlaceBet={canPlaceBet()}
+        timeLeft={timeLeft}
+        multiplier={multiplier}
+        onChipSelect={setSelectedChip}
+        onMultiplierChange={setMultiplier}
+        onDoubleAllBets={doubleAllBets}
+        onUndoLastBet={undoLastBet}
+        onClearBets={clearAllBets}
+        onSubmitBets={submitAllBets}
       />
     </div>
   )
