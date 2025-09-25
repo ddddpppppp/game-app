@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Smartphone, Coins, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Smartphone, Coins, AlertTriangle, HelpCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TransactionHistory } from "@/components/transaction-history"
-import { authService, type SystemSetting } from "@/lib/services/auth"
+import { authService, type SystemSetting, type BalanceDetail } from "@/lib/services/auth"
 import { useProfile } from "@/hooks/use-profile"
 
 interface WithdrawPageProps {
@@ -19,6 +19,7 @@ interface WithdrawPageProps {
 export function WithdrawPage({ onBack }: WithdrawPageProps) {
   const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc_online" | null>(null)
   const [userBalance, setUserBalance] = useState(0)
+  const [balanceDetail, setBalanceDetail] = useState<BalanceDetail | null>(null)
   const [amount, setAmount] = useState("")
   const [address, setAddress] = useState("")
   const [loading, setLoading] = useState(false)
@@ -30,6 +31,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
   useEffect(() => {
     loadWithdrawConfig()
     setUserBalance(user?.balance || 0)
+    setBalanceDetail(user?.balance_detail || null)
   }, [user])
 
   const loadWithdrawConfig = async () => {
@@ -53,7 +55,7 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       {
         id: "cashapp" as const,
         name: "CashApp",
-        icon: Smartphone,
+        icon: "cash.png",
         description: "Withdraw to your CashApp account",
         minAmount: min_amount,
         maxAmount: max_amount,
@@ -63,8 +65,8 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       },
       {
         id: "usdt" as const,
-        name: "USDT (Crypto)",
-        icon: Coins,
+        name: "USDT (ERC20)",
+        icon: "usdt.png",
         description: "Withdraw to your USDT wallet",
         minAmount: min_amount,
         maxAmount: max_amount,
@@ -74,8 +76,8 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       },
       {
         id: "usdc_online" as const,
-        name: "USDC (Crypto)",
-        icon: Coins,
+        name: "USDC (ERC20)",
+        icon: "usdc.png",
         description: "Withdraw to your USDC wallet",
         minAmount: min_amount,
         maxAmount: max_amount,
@@ -121,10 +123,21 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       return
     }
 
-    if (numAmount > userBalance) {
+    const withdrawableBalance = balanceDetail?.withdrawable_balance || userBalance
+    if (numAmount > withdrawableBalance) {
+      const giftBalance = balanceDetail?.gift_balance || 0
+      const giftWithdrawable = balanceDetail?.gift_withdrawable || false
+      
+      let description = "You don't have enough withdrawable balance for this withdrawal"
+      if (giftBalance > 0 && !giftWithdrawable) {
+        const requiredBet = balanceDetail?.required_bet_amount || 0
+        const currentBet = balanceDetail?.total_bet_amount || 0
+        description = `You have $${giftBalance.toFixed(2)} in gift balance that requires $${requiredBet.toFixed(2)} total bets (currently $${currentBet.toFixed(2)}) to unlock for withdrawal.`
+      }
+      
       toast({
-        title: "Insufficient Balance",
-        description: "You don't have enough balance for this withdrawal",
+        title: "Insufficient Withdrawable Balance",
+        description,
         variant: "destructive",
       })
       return
@@ -150,7 +163,9 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
 
       // 刷新交易记录和用户信息
       setRefreshTransactions(prev => prev + 1)
-      setUserBalance((await refreshUserInfo()).balance || 0)
+      const updatedUser = await refreshUserInfo()
+      setUserBalance(updatedUser.balance || 0)
+      setBalanceDetail(updatedUser.balance_detail || null)
 
       // 清空表单
       setAmount("")
@@ -189,15 +204,63 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Available Balance */}
-        <Card className="bg-muted/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Available Balance</span>
-              <span className="text-lg font-semibold">${userBalance}</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Balance Information */}
+        <div className="space-y-3">
+          <Card className="bg-muted/50">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total Balance</span>
+                  <span className="text-lg font-semibold">${userBalance.toFixed(2)}</span>
+                </div>
+                
+                {balanceDetail && (
+                  <>
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Regular Balance</span>
+                        <span className="text-sm font-medium">${balanceDetail.other_balance.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-muted-foreground">Gift Balance</span>
+                          <HelpCircle 
+                            className="h-3 w-3 text-muted-foreground cursor-help" 
+                            onClick={() => {
+                              const requiredBet = balanceDetail.required_bet_amount
+                              const currentBet = balanceDetail.total_bet_amount
+                              const times = balanceDetail.gift_transaction_times
+                              toast({
+                                title: "Gift Balance Info",
+                                description: `Gift balance requires ${times}x betting to unlock for withdrawal. You need $${requiredBet.toFixed(2)} total bets (currently $${currentBet.toFixed(2)}).`,
+                              })
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">${balanceDetail.gift_balance.toFixed(2)}</span>
+                          {balanceDetail.gift_balance > 0 && (
+                            <Badge variant={balanceDetail.gift_withdrawable ? "default" : "secondary"} className="text-xs">
+                              {balanceDetail.gift_withdrawable ? "Unlocked" : "Locked"}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-green-600">Withdrawable Balance</span>
+                        <span className="text-lg font-semibold text-green-600">${balanceDetail.withdrawable_balance.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Withdrawal Methods */}
         <div className="space-y-3">
@@ -214,8 +277,8 @@ export function WithdrawPage({ onBack }: WithdrawPageProps) {
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-accent/10 rounded-lg">
-                      <Icon className="h-6 w-6 text-accent" />
+                    <div className="rounded-lg">
+                      <img src={`/${Icon}`} alt={method.name} className="h-8 w-8 text-accent" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">

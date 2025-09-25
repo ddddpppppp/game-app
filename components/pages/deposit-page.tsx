@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ArrowLeft, Smartphone, Coins } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TransactionHistory } from "@/components/transaction-history"
@@ -20,6 +21,7 @@ interface DepositPageProps {
 export function DepositPage({ onBack }: DepositPageProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1)
   const [selectedMethod, setSelectedMethod] = useState<"cashapp" | "usdt" | "usdc_online" | null>(null)
+  const [selectedCurrency, setSelectedCurrency] = useState<'USDT' | 'USDC'>('USDT')
   const [amount, setAmount] = useState("")
   const [loading, setLoading] = useState(false)
   const [rechargeConfig, setRechargeConfig] = useState<SystemSetting | null>(null)
@@ -29,6 +31,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
     usdtAmount: number
     orderNo: string
     expiredAt: string
+    selectedCurrency: 'USDT' | 'USDC'
   } | null>(null)
   const [iframeDialogOpen, setIframeDialogOpen] = useState(false)
   const [iframeUrl, setIframeUrl] = useState("")
@@ -67,8 +70,8 @@ export function DepositPage({ onBack }: DepositPageProps) {
     return [
       {
         id: "usdc_online" as const,
-        name: "USDC Online",
-        icon: Coins,
+        name: "USDC",
+        icon: "usdc.png",
         description: "Use fiat currency to buy USDC directly and deposit it into your wallet.",
         minAmount: usdc_online_min_amount,
         maxAmount: usdc_online_max_amount,
@@ -78,23 +81,25 @@ export function DepositPage({ onBack }: DepositPageProps) {
       },
       {
         id: "usdt" as const,
-        name: "USDT (Crypto)",
-        icon: Coins,
-        description: "Deposit using USDT cryptocurrency",
+        name: "USDT/USDC (ERC20)",
+        icon: "usdt.png",
+        description: "Deposit using USDT or USDC cryptocurrency",
         minAmount: usdt_min_amount,
         maxAmount: usdt_max_amount,
         giftRate: usdt_gift_rate,
         processingTime: "1-5 minutes",
+        isOnline: false,
       },
       {
         id: "cashapp" as const,
         name: "CashApp",
-        icon: Smartphone,
+        icon: "cash.png",
         description: "Instant deposit via CashApp",
         minAmount: cashapp_min_amount,
         maxAmount: cashapp_max_amount,
         giftRate: cashapp_gift_rate,
         processingTime: "Instant",
+        isOnline: true,
       },
     ]
   }
@@ -112,6 +117,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
   const handleBackToStep1 = () => {
     setCurrentStep(1)
     setAmount("")
+    setSelectedCurrency('USDT') // 重置货币选择
   }
 
   const handleDeposit = async () => {
@@ -156,6 +162,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
           usdtAmount: result.usdt_amount!,
           orderNo: result.order_no,
           expiredAt: result.expired_at,
+          selectedCurrency: selectedCurrency,
         })
         setUsdtDialogOpen(true)
       } else if (selectedMethod === "usdc_online" && result.payment_url) {
@@ -175,6 +182,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
       // 清空表单并返回第一步
       setAmount("")
       setSelectedMethod(null)
+      setSelectedCurrency('USDT') // 重置货币选择
       setCurrentStep(1)
 
     } catch (error: any) {
@@ -253,15 +261,15 @@ export function DepositPage({ onBack }: DepositPageProps) {
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-accent/10 rounded-lg">
-                    <Icon className="h-6 w-6 text-accent" />
+                  <div className="rounded-lg">
+                    <img src={`/${Icon}`} alt={method.name} className="h-8 w-8 text-accent" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">
-                        {method.id === "usdc_online" ? (
+                        {method.isOnline ? (
                           <>
-                            USDC <span className="text-accent font-bold">Online</span>
+                            {method.name} <span className="text-accent font-bold">Online</span>
                           </>
                         ) : (
                           method.name
@@ -321,7 +329,7 @@ export function DepositPage({ onBack }: DepositPageProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-accent/10 rounded-lg">
-                <selectedMethodData.icon className="h-5 w-5 text-accent" />
+                <img src={`/${selectedMethodData.icon}`} alt={selectedMethodData.name} className="h-5 w-5 text-accent" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold">
@@ -350,6 +358,32 @@ export function DepositPage({ onBack }: DepositPageProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Currency Selection for USDT */}
+        {selectedMethod === "usdt" && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <Label className="text-base font-medium">Select Cryptocurrency</Label>
+              <RadioGroup
+                value={selectedCurrency}
+                onValueChange={(value) => setSelectedCurrency(value as 'USDT' | 'USDC')}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="USDT" id="step2-usdt" />
+                  <Label htmlFor="step2-usdt" className="cursor-pointer">USDT (ERC20)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="USDC" id="step2-usdc" />
+                  <Label htmlFor="step2-usdc" className="cursor-pointer">USDC (ERC20)</Label>
+                </div>
+              </RadioGroup>
+              <div className="text-xs text-muted-foreground">
+                Both currencies use the same deposit address for convenience.
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Amount Input */}
         <Card>

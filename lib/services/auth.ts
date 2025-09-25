@@ -36,12 +36,24 @@ export interface ChangePasswordRequest {
   new_password: string
 }
 
+export interface BalanceDetail {
+  total_balance: number
+  gift_balance: number
+  other_balance: number
+  withdrawable_balance: number
+  gift_withdrawable: boolean
+  total_bet_amount: number
+  required_bet_amount: number
+  gift_transaction_times: number
+}
+
 export interface User {
   uuid: string
   email: string
   name: string
   avatar: string
   balance: number
+  balance_detail?: BalanceDetail
   join_date: string
   level: number
   total_wins: number
