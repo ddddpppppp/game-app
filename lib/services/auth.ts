@@ -80,6 +80,7 @@ export interface Transaction {
   fee: number
   status: string
   created_at: string
+  remark?: string // 备注信息，失败时包含拒绝理由
 }
 
 // 充值响应接口

@@ -47,7 +47,7 @@ export function GameIntroDialog({ open, onOpenChange }: GameIntroDialogProps) {
               <p className="text-blue-800">
                 Canada 28 Keno game uses draw data from PlayNow.com, a gaming and entertainment website 
                 officially licensed by the British Columbia Lottery Corporation (BCLC). Draws are held 
-                every three and a half minutes, with daily maintenance scheduled from 6:00 to 6:30 Pacific Time (UTC-8).
+                every three and a half minutes, with daily maintenance scheduled from 7:00-7:30(UTC-4) Washington, DC Time.
               </p>
             </div>
           </div>
@@ -286,7 +286,7 @@ export function GameIntroDialog({ open, onOpenChange }: GameIntroDialogProps) {
             <h4 className="font-medium text-orange-800 mb-2">⚠️ Important Notes</h4>
             <ul className="text-xs text-orange-700 space-y-1">
               <li>• Betting stops 30 seconds before each draw</li>
-              <li>• Daily maintenance: 6:00-6:30 Pacific Time</li>
+              <li>• Daily maintenance: 7:00-7:30(UTC-4) Washington, DC Time</li>
               <li>• Monday delays may occur (subject to BCLC announcements)</li>
               <li>• Please play responsibly and enjoy moderately</li>
             </ul>

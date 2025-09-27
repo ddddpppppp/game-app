@@ -7,6 +7,9 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/components/auth-provider"
 import { AppLayout } from "@/components/app-layout"
 
+// 启用全局错误处理
+import "@/lib/utils/global-error-handler"
+
 export const metadata: Metadata = {
   title: "Gaming Hub",
   description: "Your ultimate gaming destination",

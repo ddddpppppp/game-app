@@ -48,7 +48,9 @@ interface BettingSystemProps {
   onUndoLastBet?: () => void
   onClearBets?: () => void
   onSubmitBets?: () => void
+  onBalanceUpdate?: (amount: number) => void  // 新增余额更新回调
   className?: string
+  localBalance?: number
 }
 
 export const BettingSystem = forwardRef<
@@ -67,7 +69,9 @@ export const BettingSystem = forwardRef<
   onUndoLastBet,
   onClearBets,
   onSubmitBets,
+  onBalanceUpdate,
   className = "",
+  localBalance,
 }, ref) {
   const [selectedChip, setSelectedChip] = useState(0.5)
   const [multiplier, setMultiplier] = useState(1)
@@ -103,6 +107,7 @@ export const BettingSystem = forwardRef<
   // 处理投注类型点击
   const handleBetTypeClick = useCallback((betType: BetType, targetElement: HTMLElement) => {
     if (!canPlaceBet) return
+    if (localBalance && localBalance < actualChipValue) return
 
     const chipSelectorElement = containerRef.current?.querySelector('.chip-selector')
     if (!chipSelectorElement || !targetElement) return
@@ -186,6 +191,8 @@ export const BettingSystem = forwardRef<
 
   // 清除投注
   const clearBets = () => {
+    // 计算需要返还的总金额
+    
     setBetPositions([])
     // 如果有外部清除回调，也调用它
     if (onClearBets) {
@@ -195,15 +202,19 @@ export const BettingSystem = forwardRef<
 
   // 桌面筹码翻倍
   const doubleAllBets = () => {
+    // 计算当前投注总额，用于扣减余额
+    
     setBetPositions(prev => prev.map(pos => ({
       ...pos,
       amount: pos.amount * 2
     })))
+    
     onDoubleAllBets?.()
   }
 
   // 撤回上一个投注
   const undoLastBet = () => {
+    
     setBetPositions(prev => {
       if (prev.length === 0) return prev
       
@@ -221,6 +232,8 @@ export const BettingSystem = forwardRef<
       
       return newPositions
     })
+    
+    
     onUndoLastBet?.()
   }
 
@@ -318,7 +331,7 @@ export const BettingSystem = forwardRef<
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onDoubleAllBets?.()}
+              onClick={() => doubleAllBets?.()}
               className="text-white hover:bg-white/20 bg-blue-600/80 hover:bg-blue-600 flex-1"
             >
               ×2
@@ -326,7 +339,7 @@ export const BettingSystem = forwardRef<
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onUndoLastBet?.()}
+              onClick={() => undoLastBet?.()}
               className="text-white hover:bg-white/20 bg-gray-600/80 hover:bg-gray-600 flex-1"
             >
               ←

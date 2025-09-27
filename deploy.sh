@@ -13,6 +13,7 @@ SERVER_PORT="22"
 REMOTE_PATH="/www/wwwroot/app.game-hub.cc"
 PROJECT_NAME="app-game-hub-cc"
 BUILD_COMMAND="npm run build" # or "yarn build" if using yarn
+UPLOAD_OSS="false" # Set to "false" to skip OSS upload
 SSH_KEY_PATH="~/.ssh/id_ed25519"
 
 # Function to clean up and exit
@@ -49,7 +50,19 @@ fi
 
 echo -e "${GREEN}Build completed successfully.${NC}"
 
-# Step 2: Create a compressed archive from inside the dist directory
+# Step 2: Upload static assets to OSS (optional)
+if [ "$UPLOAD_OSS" = "true" ]; then
+    echo -e "${YELLOW}Uploading static assets to OSS...${NC}"
+    npm run upload:oss
+    
+    if [ $? -ne 0 ]; then
+        echo -e "\n${YELLOW}Warning: OSS upload failed, but continuing with deployment...${NC}"
+    else
+        echo -e "${GREEN}OSS upload completed successfully.${NC}"
+    fi
+fi
+
+# Step 3: Create a compressed archive from inside the dist directory
 echo -e "${YELLOW}Creating compressed archive...${NC}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 ARCHIVE_NAME="${PROJECT_NAME}_${TIMESTAMP}.tar.gz"
@@ -66,7 +79,7 @@ echo -e "${YELLOW}Compressing contents of dist directory...${NC}"
 
 echo -e "${GREEN}Archive created: $ARCHIVE_NAME${NC}"
 
-# Step 3: Upload to server using certificate-based authentication
+# Step 4: Upload to server using certificate-based authentication
 echo -e "${YELLOW}Uploading to server using certificate authentication...${NC}"
 scp -i $SSH_KEY_PATH -P $SERVER_PORT $ARCHIVE_NAME $SERVER_USER@$SERVER_HOST:$REMOTE_PATH
 
@@ -77,7 +90,7 @@ fi
 
 echo -e "${GREEN}Upload completed successfully.${NC}"
 
-# Step 4: Extract on the server using certificate-based authentication
+# Step 5: Extract on the server using certificate-based authentication
 echo -e "${YELLOW}Extracting archive on server...${NC}"
 ssh -i $SSH_KEY_PATH -p $SERVER_PORT $SERVER_USER@$SERVER_HOST "cd $REMOTE_PATH && tar -xzvf $ARCHIVE_NAME && rm $ARCHIVE_NAME"
 

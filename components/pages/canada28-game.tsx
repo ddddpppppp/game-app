@@ -55,6 +55,7 @@ export function Canada28Game() {
 
   // 滚动容器ref
   const messagesScrollRef = useRef<HTMLDivElement>(null)
+  const isAtBottomRef = useRef(true) // 跟踪用户是否在底部
   
   // 投注系统引用
   const bettingSystemRef = useRef<{
@@ -125,9 +126,18 @@ export function Canada28Game() {
 
   // 清除所有投注
   const clearAllBets = () => {
+    // 计算所有投注的总金额，用于退还余额
+    const totalRefundAmount = [...betPositions, ...sumBetPositions].reduce((sum, pos) => sum + pos.amount, 0)
+    
     setBetPositions([])
     setSumBetPositions([])
-      // 同时清空betting-system内部状态
+    
+    // 恢复本地余额
+    if (totalRefundAmount > 0) {
+      setLocalBalance(prev => prev + totalRefundAmount)
+    }
+    
+    // 同时清空betting-system内部状态
     if (bettingSystemRef.current) {
       bettingSystemRef.current.clearInternalBets()
     }
@@ -135,6 +145,23 @@ export function Canada28Game() {
   
   // 翻倍所有投注
   const doubleAllBets = () => {
+    // 计算当前所有投注的总金额
+    const currentTotalAmount = [...betPositions, ...sumBetPositions].reduce((sum, pos) => sum + pos.amount, 0)
+    
+    // 检查余额是否足够支付翻倍后的额外金额
+    if (localBalance < currentTotalAmount) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Your balance is not enough to double all bets.",
+        variant: "destructive",
+        duration: 4000,
+      })
+      return
+    }
+
+    // 动态扣减本地余额（额外需要的金额）
+    setLocalBalance(prev => prev - currentTotalAmount)
+
     setBetPositions(prev => prev.map(pos => ({
       ...pos,
       amount: pos.amount * 2
@@ -148,6 +175,7 @@ export function Canada28Game() {
   // 撤回最后一个投注
   const undoLastBet = () => {
     const actualChipValue = selectedChip * multiplier
+    let refundAmount = 0
     
     // 根据当前区域撤回对应的投注
     if (selectedCategory === "sum") {
@@ -159,8 +187,14 @@ export function Canada28Game() {
         
         if (lastPosition.amount > actualChipValue) {
           lastPosition.amount -= actualChipValue
+          refundAmount = actualChipValue
         } else {
+          refundAmount = lastPosition.amount
           newPositions.pop()
+        }
+        // 恢复本地余额
+        if (refundAmount > 0) {
+          setLocalBalance(prev => prev + refundAmount)
         }
         
         return newPositions
@@ -174,13 +208,20 @@ export function Canada28Game() {
         
         if (lastPosition.amount > actualChipValue) {
           lastPosition.amount -= actualChipValue
+          refundAmount = actualChipValue
         } else {
+          refundAmount = lastPosition.amount
           newPositions.pop()
+        }
+        // 恢复本地余额
+        if (refundAmount > 0) {
+          setLocalBalance(prev => prev + refundAmount)
         }
         
         return newPositions
       })
     }
+    
   }
 
   // 计时器状态
@@ -251,13 +292,35 @@ export function Canada28Game() {
     }
   }
   
+  // 本地余额状态管理（用于动态更新而不请求接口）
+  const [localBalance, setLocalBalance] = useState<number>(0)
+  
   // 获取用户余额，提供默认值防止未加载时报错
-  const balance = isAuthenticated && user ? user.balance : 0
+  const balance = isAuthenticated && user ? localBalance : 0
+  
+  // 当用户信息更新时，同步更新本地余额
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setLocalBalance(user.balance)
+    }
+  }, [isAuthenticated, user])
+
+  // 检查是否滚动到底部
+  const checkIfAtBottom = () => {
+    if (messagesScrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesScrollRef.current
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 200 
+      isAtBottomRef.current = isAtBottom
+      return isAtBottom
+    }
+    return true
+  }
 
   // 滚动到消息底部
   const scrollToBottom = () => {
     if (messagesScrollRef.current) {
       messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight
+      isAtBottomRef.current = true
     }
     // 控制浏览器默认的body滚动
     if (typeof window !== 'undefined') {
@@ -309,7 +372,9 @@ export function Canada28Game() {
   const fetchMessages = async () => {
     try {
       const data = await gameService.getCanada28Messages()
-      setMessages(data.messages)
+      // 只保留最近200条消息
+      const recentMessages = data.messages.slice(-200)
+      setMessages(recentMessages)
     } catch (error) {
       console.error("Failed to fetch messages:", error)
       toast({
@@ -429,7 +494,13 @@ export function Canada28Game() {
       case "new_message":
         // 收到新的聊天消息，直接添加到消息列表
         if (data.data) {
-          setMessages((prev) => [...prev, data.data])
+          setMessages((prev) => {
+            const newMessages = [...prev, data.data]
+            // 如果用户在底部，且消息超过200条，则删除旧消息
+            // 如果用户不在底部，暂时保留更多消息避免抖动
+            const maxMessages = isAtBottomRef.current ? 200 : Math.min(250, prev.length + 1)
+            return newMessages.slice(-maxMessages)
+          })
         }
         break
       case "draw_result":
@@ -440,6 +511,12 @@ export function Canada28Game() {
           setLastDrawSum(data.data.result_sum)
           // 刷新游戏数据，重置倒计时，防止重复触发
           fetchGameData(true)
+          // 刷新用户数据
+          if (isAuthenticated) {
+            setTimeout(() => {
+              refreshUserInfo().catch(console.error)
+            }, 1000)
+          }
         }
         break
       default:
@@ -493,17 +570,19 @@ export function Canada28Game() {
 
   // 当用户切换到开奖历史tab时才加载数据
   useEffect(() => {
-    if (activeTab === "draw-history" && drawHistory.length === 0) {
+    if (activeTab === "draw-history") {
       fetchDrawHistory()
+    } else if (activeTab === "bet-history") {
+      fetchBetHistory()
     }
   }, [activeTab])
 
   // 当用户切换到投注历史tab时才加载数据
-  useEffect(() => {
-    if (activeTab === "bet-history" && betHistory.length === 0) {
-      fetchBetHistory()
-    }
-  }, [activeTab])
+  // useEffect(() => {
+  //   if (activeTab === "bet-history") {
+  //     fetchBetHistory()
+  //   }
+  // }, [activeTab])
 
   // 倒计时效果
   useEffect(() => {
@@ -578,16 +657,31 @@ export function Canada28Game() {
     }
   }, [wsManager])
 
-  // 监听消息变化，自动滚动到底部
+  // 监听消息变化，智能滚动到底部
   useEffect(() => {
-    if (messages.length <= 51) {
-      const timer = setTimeout(() => {
-        scrollToBottom()
-      }, 300)
+    if (messages.length) {
+      // 检查用户是否在底部，只有在底部时才自动滚动
+      checkIfAtBottom()
+      if (isAtBottomRef.current) {
+        const timer = setTimeout(() => {
+          scrollToBottom()
+        }, 100) // 减少延迟，使滚动更响应
 
-      return () => clearTimeout(timer)
+        return () => clearTimeout(timer)
+      }
     }
   }, [messages])
+
+  // 定期清理过多的消息（当用户滚动到底部时）
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      if (messages.length > 250 && isAtBottomRef.current) {
+        setMessages(prev => prev.slice(-200))
+      }
+    }, 10000) // 每10秒检查一次
+
+    return () => clearInterval(cleanupInterval)
+  }, [messages.length])
 
   const handleBack = () => {
     router.back()
@@ -601,16 +695,6 @@ export function Canada28Game() {
 
   // 检查是否可以下注（30秒内停止下注）
   const canPlaceBet = () => {
-    let totalBetAmount = 0
-    betPositions.forEach(position => {
-      totalBetAmount += position.amount
-    })
-    sumBetPositions.forEach(position => {
-      totalBetAmount += position.amount
-    })
-    if (totalBetAmount >= balance) {
-      return false
-    }
     return timeLeft > 30 && !isDrawing
   }
 
@@ -647,7 +731,7 @@ export function Canada28Game() {
     }
 
     const totalAmount = bets.reduce((sum, bet) => sum + bet.amount, 0)
-    if (totalAmount > balance) {
+    if (totalAmount > (user?.balance || 0)) {
       toast({
         title: "Insufficient Balance",
         description: "Your balance is not enough to cover all bets.",
@@ -660,7 +744,6 @@ export function Canada28Game() {
     try {
       setBetting(true)
 
-      // 依次提交所有投注
       try {
         await gameService.placeCanada28Bet({ bets: bets.map(bet => ({ bet_type_id: Number.parseInt(bet.betTypeId), amount: bet.amount })) })
         toast({
@@ -676,11 +759,8 @@ export function Canada28Game() {
           duration: 5000,
         })
       }
-
-      // Refresh user info to update balance (only when logged in)
-      if (isAuthenticated) {
-        refreshUserInfo().catch(console.error)
-      }
+      refreshUserInfo().catch(console.error)
+      
 
       // If currently on bet history page, refresh bet history
       if (activeTab === "bet-history") {
@@ -711,6 +791,20 @@ export function Canada28Game() {
     // 计算实际投注金额
     const actualChipValue = selectedChip * multiplier
 
+    // 检查余额是否足够（避免超额投注）
+    if (localBalance < actualChipValue) {
+      toast({
+        title: "Insufficient Balance",
+        description: "Your balance is not enough for this bet.",
+        variant: "destructive",
+        duration: 4000,
+      })
+      return
+    }
+
+    // 动态扣减本地余额
+    setLocalBalance(prev => prev - actualChipValue)
+
     // 获取目标元素相对于投注区域的位置（包含滚动偏移）
     const betAreaRect = betAreaElement.getBoundingClientRect()
     const targetRect = targetElement.getBoundingClientRect()
@@ -721,7 +815,6 @@ export function Canada28Game() {
     // 添加或更新投注位置 - 根据区域选择对应的状态
     const isSum = selectedCategory === "sum"
     const setPositions = isSum ? setSumBetPositions : setBetPositions
-    
     setPositions(prev => {
       const existingIndex = prev.findIndex(pos => pos.betTypeId === betType.id.toString())
       const newPosition: BetPosition = {
@@ -910,7 +1003,11 @@ export function Canada28Game() {
 
       <div className="pt-32">
         {/* Messages Container */}
-        <div ref={messagesScrollRef} className="h-[calc(100vh)] overflow-y-auto px-4 py-2 space-y-2">
+        <div 
+          ref={messagesScrollRef} 
+          className="h-[calc(100vh)] overflow-y-auto px-4 py-2 space-y-2"
+          onScroll={checkIfAtBottom}
+        >
           <div className="space-y-4">
             {messages.map((message) => {
               const isMyMessage = isAuthenticated && user ? gameService.isMyMessage(message, user.uuid) : false
@@ -1005,7 +1102,7 @@ export function Canada28Game() {
             {!selectedCategory ? (
               <div ref={betAreaRef} className="max-h-[60vh] overflow-y-auto relative">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">click bet options <span className="text-xs text-gray-500">${user?.balance.toFixed(2)}</span></h3>
+                  <h3 className="font-semibold text-foreground">click bet options <span className="ml-2 text-sm text-red-500 font-bold">${localBalance.toFixed(2)}</span></h3>
                   <Button variant="ghost" size="sm" onClick={() => setActiveTab(null)} className="text-foreground">
                     Close
                   </Button>
@@ -1373,6 +1470,8 @@ export function Canada28Game() {
         onUndoLastBet={undoLastBet}
         onClearBets={clearAllBets}
         onSubmitBets={submitAllBets}
+        onBalanceUpdate={(amount) => setLocalBalance(prev => prev + amount)}
+        localBalance={localBalance}
       />
     </div>
   )

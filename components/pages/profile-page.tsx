@@ -18,6 +18,7 @@ import {
   Star,
   Trophy,
   LogOut,
+  MessageCircle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useProfile } from "@/hooks/use-profile"
@@ -43,6 +44,12 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
   }
 
   const mainMenuItems = [
+    {
+      icon: MessageCircle,
+      title: "Customer Service",
+      description: "Contact our support team",
+      action: () => window.open("https://www.facebook.com/profile.php?id=61581219701236", "_blank"),
+    },
     {
       icon: Wallet,
       title: "My Wallet",

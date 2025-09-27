@@ -28,6 +28,10 @@ class ApiService {
     })
     return response.data
   }
+  async appError(data: any) {
+    const response = await api.post('/api/api/appError', data)
+    return response.data
+  }
 }
 
 export const apiService = new ApiService() 
