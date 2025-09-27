@@ -27,7 +27,10 @@ const nextConfig = {
   
   // 确保静态资源正确处理
   assetPrefix: process.env.NODE_ENV === 'production' && process.env.OSS_CDN_DOMAIN ? process.env.OSS_CDN_DOMAIN : '',
-  
+  images: { 
+    loader: 'custom', 
+    loaderFile: './lib/image/loader.ts',
+  },
   // 处理动态导入和客户端兼容性
   webpack: (config, { isServer }) => {
     if (!isServer) {

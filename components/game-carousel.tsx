@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 
 interface CarouselItem {
   id: string
@@ -68,10 +69,11 @@ export function GameCarousel() {
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
           <div className="relative h-50 md:h-56">
-            <img
+            <Image
               src={mockCarouselData[currentIndex].image || "/placeholder.svg"}
               alt={mockCarouselData[currentIndex].title}
               className="w-full h-full object-cover"
+              fill
             />
             {/* <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" /> */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm">

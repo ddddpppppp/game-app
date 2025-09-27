@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { gameService, type CurrentDraw } from "@/lib/services/game"
 import { TimeUtils } from "@/lib/utils/time"
-
+import Image from "next/image"
 interface Game {
   id: string
   name: string
@@ -44,15 +44,14 @@ function CountdownDisplay({ endAt }: { endAt: string | null }) {
 
   if (!endAt) {
     return (
-      <div 
-        className="w-full h-24 flex flex-col items-center justify-center text-white relative"
-        style={{
-          backgroundImage: 'url(/canada28-1.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
+      <div className="w-full h-24 flex flex-col items-center justify-center text-white relative overflow-hidden rounded-t-lg">
+        <Image
+          src="/canada28-1.png"
+          alt="Canada28 Game Background"
+          fill
+          className="object-cover"
+          priority
+        />
         {/* 添加半透明遮罩以确保文字可读性 */}
         <div className="absolute inset-0 bg-black/40 rounded-t-lg"></div>
         <div className="relative z-10 flex flex-col items-center justify-center">
@@ -75,15 +74,14 @@ function CountdownDisplay({ endAt }: { endAt: string | null }) {
   }
 
   return (
-    <div 
-      className="w-full h-24 flex flex-col items-center justify-center text-white relative"
-      style={{
-        backgroundImage: 'url(/canada28-1.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
+    <div className="w-full h-24 flex flex-col items-center justify-center text-white relative overflow-hidden rounded-t-lg">
+      <Image
+        src="/canada28-1.png"
+        alt="Canada28 Game Background"
+        fill
+        className="object-cover"
+        priority
+      />
       {/* 添加半透明遮罩以确保文字可读性 */}
       <div className="absolute inset-0 bg-black/40 rounded-t-lg"></div>
       <div className="relative z-10 flex flex-col items-center justify-center">

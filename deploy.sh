@@ -13,7 +13,7 @@ SERVER_PORT="22"
 REMOTE_PATH="/www/wwwroot/app.game-hub.cc"
 PROJECT_NAME="app-game-hub-cc"
 BUILD_COMMAND="npm run build" # or "yarn build" if using yarn
-UPLOAD_OSS="false" # Set to "false" to skip OSS upload
+UPLOAD_OSS="true" # Set to "false" to skip OSS upload
 SSH_KEY_PATH="~/.ssh/id_ed25519"
 
 # Function to clean up and exit
@@ -39,8 +39,26 @@ cleanup_and_exit() {
 trap 'cleanup_and_exit 1' INT TERM
 
 echo -e "${YELLOW}Starting deployment process...${NC}"
-# Step 1: Build the project
+# Step 1: Clean and build the project
+echo -e "${YELLOW}Cleaning previous build...${NC}"
+rm -rf .next dist
+
 echo -e "${YELLOW}Building project...${NC}"
+
+# Load environment variables from .env.local
+if [ -f ".env.local" ]; then
+    echo -e "${YELLOW}Loading environment variables from .env.local...${NC}"
+    export $(grep -v '^#' .env.local | xargs)
+    echo -e "${GREEN}Environment variables loaded successfully.${NC}"
+    echo -e "${YELLOW}OSS_CDN_DOMAIN: $OSS_CDN_DOMAIN${NC}"
+    echo -e "${YELLOW}NODE_ENV: $NODE_ENV${NC}"
+else
+    echo -e "${RED}Warning: .env.local not found!${NC}"
+fi
+
+# Set production environment
+export NODE_ENV=production
+
 $BUILD_COMMAND
 
 if [ $? -ne 0 ]; then
