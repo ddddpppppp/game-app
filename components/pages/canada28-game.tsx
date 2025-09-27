@@ -68,6 +68,17 @@ export function Canada28Game() {
   const [messages, setMessages] = useState<GroupMessage[]>([])
   const [drawHistory, setDrawHistory] = useState<DrawHistory[]>([])
   const [drawHistoryPage, setDrawHistoryPage] = useState(1)
+  
+  // 消息去重缓存 - 存储最近消息的唯一标识符，提高去重效率
+  const messageKeysRef = useRef<Set<string>>(new Set())
+  
+  // 生成消息唯一标识符
+  const getMessageKey = (message: any) => {
+    if (message.id) {
+      return `id_${message.id}`
+    }
+    return `${message.user_id}_${message.created_at}_${message.message}`
+  }
   const [drawHistoryHasMore, setDrawHistoryHasMore] = useState(true)
   const [drawHistoryLoading, setDrawHistoryLoading] = useState(false)
   const [betHistory, setBetHistory] = useState<BetHistory[]>([])
@@ -309,7 +320,7 @@ export function Canada28Game() {
   const checkIfAtBottom = () => {
     if (messagesScrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesScrollRef.current
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 200 
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1200 
       isAtBottomRef.current = isAtBottom
       return isAtBottom
     }
@@ -374,6 +385,13 @@ export function Canada28Game() {
       const data = await gameService.getCanada28Messages()
       // 只保留最近200条消息
       const recentMessages = data.messages.slice(-200)
+      
+      // 初始化消息去重缓存
+      messageKeysRef.current.clear()
+      recentMessages.forEach(message => {
+        messageKeysRef.current.add(getMessageKey(message))
+      })
+      
       setMessages(recentMessages)
     } catch (error) {
       console.error("Failed to fetch messages:", error)
@@ -492,14 +510,21 @@ export function Canada28Game() {
   const handleWebSocketMessage = (data: any) => {
     switch (data.action) {
       case "new_message":
-        // 收到新的聊天消息，直接添加到消息列表
+        // 收到新的聊天消息，使用高效的去重检查
         if (data.data) {
+          const messageKey = getMessageKey(data.data)
+          
+          // 使用Set进行O(1)时间复杂度的去重检查
+          if (messageKeysRef.current.has(messageKey)) {
+            console.log('发现重复消息，跳过添加:', data.data)
+            return
+          }
+          
           setMessages((prev) => {
+            // 添加到去重缓存
+            messageKeysRef.current.add(messageKey)
             const newMessages = [...prev, data.data]
-            // 如果用户在底部，且消息超过200条，则删除旧消息
-            // 如果用户不在底部，暂时保留更多消息避免抖动
-            const maxMessages = isAtBottomRef.current ? 200 : Math.min(250, prev.length + 1)
-            return newMessages.slice(-maxMessages)
+            return newMessages
           })
         }
         break
@@ -675,13 +700,24 @@ export function Canada28Game() {
   // 定期清理过多的消息（当用户滚动到底部时）
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
-      if (messages.length > 250 && isAtBottomRef.current) {
-        setMessages(prev => prev.slice(-200))
-      }
+      setMessages(prev => {
+        if (prev.length > 250 && isAtBottomRef.current) {
+          const cleanedMessages = prev.slice(-200)
+          
+          // 同步更新去重缓存
+          messageKeysRef.current.clear()
+          cleanedMessages.forEach(message => {
+            messageKeysRef.current.add(getMessageKey(message))
+          })
+          
+          return cleanedMessages
+        }
+        return prev
+      })
     }, 10000) // 每10秒检查一次
 
     return () => clearInterval(cleanupInterval)
-  }, [messages.length])
+  }, []) // 空依赖数组，只在组件挂载时创建一次定时器
 
   const handleBack = () => {
     router.back()
@@ -1015,7 +1051,7 @@ export function Canada28Game() {
 
               return (
                 <div
-                  key={message.id || `${message.user_id}-${message.created_at}-${message.message.slice(0, 10)}`}
+                  key={message.id || `${message.user_id}-${message.created_at}-${message.message}`}
                   className={`flex gap-3 ${isMyMessage ? "justify-end" : "justify-start"}`}
                 >
                   <div
