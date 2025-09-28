@@ -955,7 +955,7 @@ export function Canada28Game() {
         <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-3 mt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm opacity-90">
+              <span className="text-xs opacity-90">
                 Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
               </span>
               <div className="flex gap-2 ml-3">
@@ -1012,7 +1012,7 @@ export function Canada28Game() {
               </div>
             </div>
             {/* 游戏介绍对话框按钮 */}
-            <HelpCircle className="w-5 h-5 mr-2" onClick={() => setShowGameIntro(true)} />
+            <HelpCircle className="w-4 h-4 mr-2" onClick={() => setShowGameIntro(true)} />
             {/* <div className="w-6 h-6 flex items-center justify-center">
               <svg className="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 20 20">
                 <path
