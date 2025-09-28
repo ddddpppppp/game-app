@@ -147,14 +147,8 @@ export function DepositPage({ onBack }: DepositPageProps) {
       const result = await authService.createDeposit(numAmount, selectedMethod)
 
       if (selectedMethod === "cashapp" && result.payment_url) {
-        // CashApp: 显示弹层
-        setIframeUrl(result.payment_url)
-        setIframeTitle("CashApp Payment")
-        setIframeDialogOpen(true)
-        toast({
-          title: "Payment Ready",
-          description: "Please complete the CashApp payment",
-        })
+        // CashApp: 直接跳转
+        window.location.href = result.payment_url
       } else if (selectedMethod === "usdt") {
         // USDT: 显示弹窗
         setUsdtDepositInfo({
