@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth-provider"
+import { showPWAInstallPrompt, isPWAMode } from "@/lib/utils/pwa-utils"
 import Image from "next/image"
 
 interface CarouselItem {
@@ -28,8 +30,16 @@ const mockCarouselData: CarouselItem[] = [
 export function GameCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentDescIndex, setCurrentDescIndex] = useState(0)
+  const [isStandalone, setIsStandalone] = useState(false)
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
   
+  // PWA检测
+  useEffect(() => {
+    // 检测是否在PWA模式(standalone模式)
+    setIsStandalone(isPWAMode())
+  }, [])
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex === mockCarouselData.length - 1 ? 0 : prevIndex + 1))
@@ -64,6 +74,10 @@ export function GameCarousel() {
     setCurrentIndex(currentIndex === mockCarouselData.length - 1 ? 0 : currentIndex + 1)
   }
 
+  const handleDownloadApp = () => {
+    showPWAInstallPrompt()
+  }
+
   return (
     <div className="relative w-full">
       <Card className="overflow-hidden py-0">
@@ -84,17 +98,27 @@ export function GameCarousel() {
                 <p className="text-sm mb-3 text-pretty opacity-95 carousel-tex text-center">
                   {mockCarouselData[currentIndex].description[currentDescIndex]}
                 </p>
-                <button
-                  className="px-2 py-1 text-sm font-semibold rounded-md shadow-lg transition-colors cursor-pointer"
-                  style={{
-                    backgroundColor: "#3080ff",
-                    color: "#ffffff",
-                    border: "1px solid #3080ff",
-                  }}
-                  onClick={() => router.push("/register")}
-                >
-                  {mockCarouselData[currentIndex].buttonText}
-                </button>
+                {/* 在PWA模式下隐藏按钮 */}
+                {!isStandalone && (
+                  <button
+                    className="px-2 py-1 text-xs font-semibold rounded-md shadow-lg transition-colors cursor-pointer flex items-center gap-2"
+                    style={{
+                      backgroundColor: "#3080ff",
+                      color: "#ffffff",
+                      border: "1px solid #3080ff",
+                    }}
+                    onClick={isAuthenticated ? handleDownloadApp : () => router.push("/register")}
+                  >
+                    {isAuthenticated ? (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Download App
+                      </>
+                    ) : (
+                      mockCarouselData[currentIndex].buttonText
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -130,6 +154,7 @@ export function GameCarousel() {
           />
         ))}
       </div> */}
+
     </div>
   )
 }

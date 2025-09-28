@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 SERVER_USER="root"
 SERVER_HOST="47.85.92.27"
 SERVER_PORT="22"
-REMOTE_PATH="/www/wwwroot/app.game-hub.cc"
+REMOTE_PATH="/www/wwwroot/test.game-hub.cc"
 PROJECT_NAME="app-game-hub-cc"
 BUILD_COMMAND="npm run build" # or "yarn build" if using yarn
 UPLOAD_OSS="true" # Set to "false" to skip OSS upload
@@ -58,6 +58,13 @@ fi
 
 # Set production environment
 export NODE_ENV=production
+
+# Generate PWA icons if they don't exist
+if [ ! -f "public/icons/icon-192x192.png" ]; then
+    echo -e "${YELLOW}Generating PWA icons from logo.png...${NC}"
+    npm run icons:build
+    echo -e "${GREEN}PWA icons generated successfully.${NC}"
+fi
 
 $BUILD_COMMAND
 

@@ -11,10 +11,45 @@ import { AppLayout } from "@/components/app-layout"
 import "@/lib/utils/global-error-handler"
 
 export const metadata: Metadata = {
-  title: "Gaming Hub",
-  description: "Your ultimate gaming destination",
+  title: "Keno Canada28",
+  description: "Ultimate Keno and Canada28 gaming experience",
   generator: 'v0.app',
-  viewport: "width=device-width, initial-scale=1, viewport-fit=cover"
+  viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
+  manifest: "/manifest.json",
+  themeColor: "#ffd700",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Keno Canada28",
+    startupImage: [
+      {
+        url: "/icons/icon-192x192.png",
+        media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
+      }
+    ]
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Keno Canada28",
+    title: "Keno Canada28",
+    description: "Ultimate Keno and Canada28 gaming experience",
+    images: ["/icons/icon-512x512.png"]
+  },
+  twitter: {
+    card: "summary",
+    title: "Keno Canada28",
+    description: "Ultimate Keno and Canada28 gaming experience",
+    images: ["/icons/icon-512x512.png"]
+  },
+  icons: {
+    icon: "/icons/icon-192x192.png",
+    shortcut: "/icons/icon-192x192.png",
+    apple: "/icons/icon-192x192.png",
+    other: {
+      rel: "apple-touch-icon-precomposed",
+      url: "/icons/icon-192x192.png"
+    }
+  }
 }
 
 export default function RootLayout({
