@@ -5,12 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { authService, type Transaction } from "@/lib/services/auth"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Info } from "lucide-react"
 
 interface TransactionHistoryProps {
   type?: string // deposit, withdraw, all
@@ -117,18 +112,16 @@ export function TransactionHistory({ type = "deposit", refreshKey }: Transaction
                       {getStatusText(transaction.status)}
                     </Badge>
                     {transaction.type === 'withdraw' && transaction.status === 'failed' && transaction.remark && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-pointer text-red-500 hover:text-red-700 font-bold text-lg">
-                              ?
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">{transaction.remark}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <button 
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                        onClick={() => toast({
+                          title: "Error",
+                          description: transaction.remark,
+                          variant: "destructive",
+                        })}
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground">

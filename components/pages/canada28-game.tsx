@@ -953,75 +953,71 @@ export function Canada28Game() {
         </div>
 
         <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-lg p-3 mt-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-xs opacity-90">
-                Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
-              </span>
-              <div className="flex gap-2 ml-3">
-                {lastDrawNumbers.map((number, index) => (
-                  <div
-                    key={index}
-                    className="relative w-8 h-8 bg-white rounded shadow-md border border-white/20 overflow-hidden"
-                  >
-                    {/* 老虎机滚动容器 */}
-                    <div
-                      className={`absolute inset-0 flex flex-col items-center justify-start ${
-                        isDrawing ? "animate-spin-slot" : ""
-                      }`}
-                    >
-                      {/* 显示数字0-9的循环滚动列表 */}
-                      {[...Array(20)].map((_, digitIndex) => (
-                        <div
-                          key={digitIndex}
-                          className="w-8 h-8 flex items-center justify-center text-sm font-bold text-gray-800 flex-shrink-0"
-                        >
-                          {isDrawing ? digitIndex % 10 : number}
-                        </div>
-                      ))}
-                    </div>
-                    {/* 当前显示的数字（停止时） */}
-                    {!isDrawing && (
-                      <div className="absolute inset-0 w-8 h-8 flex items-center justify-center text-sm font-bold text-gray-800 bg-white">
-                        {number}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold">=</span>
+          {/* 顶部期数和帮助按钮 */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs opacity-90">
+              Period {currentPeriod ? (Number.parseInt(currentPeriod) - 1).toString() : ""}
+            </span>
+            <HelpCircle className="w-4 h-4" onClick={() => setShowGameIntro(true)} />
+          </div>
+          
+          {/* 开奖结果展示区 */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3">
+            {/* 数字球区域 */}
+            <div className="flex gap-1 sm:gap-2">
+              {lastDrawNumbers.map((number, index) => (
                 <div
-                                     className="w-9 h-9 flex items-center justify-center ml-1 rounded-full shadow-md border border-purple-200/40 bg-gradient-to-br from-purple-300 to-purple-400 relative overflow-hidden"
-                  style={{
-                    filter: "none",
-                  }}
+                  key={index}
+                  className="relative w-7 h-7 sm:w-8 sm:h-8 bg-white rounded shadow-md border border-white/20 overflow-hidden"
                 >
-                  {isDrawing ? (
-                    <div className="animate-pulse">
-                      <span className="text-sm font-bold text-white">
-                        {Math.floor(Math.random() * 28)}
-                      </span>
+                  {/* 老虎机滚动容器 */}
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-start ${
+                      isDrawing ? "animate-spin-slot" : ""
+                    }`}
+                  >
+                    {/* 显示数字0-9的循环滚动列表 */}
+                    {[...Array(20)].map((_, digitIndex) => (
+                      <div
+                        key={digitIndex}
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm font-bold text-gray-800 flex-shrink-0"
+                      >
+                        {isDrawing ? digitIndex % 10 : number}
+                      </div>
+                    ))}
+                  </div>
+                  {/* 当前显示的数字（停止时） */}
+                  {!isDrawing && (
+                    <div className="absolute inset-0 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm font-bold text-gray-800 bg-white">
+                      {number}
                     </div>
-                  ) : (
-                    <span className="text-sm font-bold text-white">
-                      {lastDrawSum}
-                    </span>
                   )}
                 </div>
-              </div>
+              ))}
             </div>
-            {/* 游戏介绍对话框按钮 */}
-            <HelpCircle className="w-4 h-4 mr-2" onClick={() => setShowGameIntro(true)} />
-            {/* <div className="w-6 h-6 flex items-center justify-center">
-              <svg className="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div> */}
+            
+            {/* 等号 */}
+            <span className="text-sm font-bold mx-1">=</span>
+            
+            {/* 结果球 */}
+            <div
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full shadow-md border border-purple-200/40 bg-gradient-to-br from-purple-300 to-purple-400 relative overflow-hidden"
+              style={{
+                filter: "none",
+              }}
+            >
+              {isDrawing ? (
+                <div className="animate-pulse">
+                  <span className="text-xs sm:text-sm font-bold text-white">
+                    {Math.floor(Math.random() * 28)}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs sm:text-sm font-bold text-white">
+                  {lastDrawSum}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

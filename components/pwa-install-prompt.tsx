@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Download, Smartphone, Loader2 } from "lucide-react"
+import { X, Download, Smartphone, Loader2, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface BeforeInstallPromptEvent extends Event {
@@ -25,6 +25,7 @@ export function PWAInstallPrompt() {
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
+  const [installSuccess, setInstallSuccess] = useState(false)
 
   // 监听外部触发的安装提示事件
   useEffect(() => {
@@ -84,18 +85,50 @@ export function PWAInstallPrompt() {
         
         if (outcome === 'accepted') {
           console.log('User accepted PWA installation')
+          // 用户点击了允许安装，但实际安装过程可能还在进行
+          // 监听 appinstalled 事件来确定真正的安装完成
+          const handleAppInstalled = () => {
+            console.log('PWA installation process started')
+            // appinstalled事件触发后，继续显示安装状态，因为实际安装还需要时间
+            // 延长安装状态显示时间，给实际安装过程留足够时间
+            setTimeout(() => {
+              setIsInstalling(false)
+              setInstallSuccess(true)
+              setTimeout(() => {
+                setShowInstallPrompt(false)
+                localStorage.setItem('pwa-install-prompt-shown', 'true')
+              }, 5000)
+            }, 15000) // 等待15秒，确保实际安装完成
+            
+            window.removeEventListener('appinstalled', handleAppInstalled)
+          }
+          
+          window.addEventListener('appinstalled', handleAppInstalled)
+          
+          // 如果20秒内没有收到安装完成事件，也隐藏横幅（fallback）
+          setTimeout(() => {
+            if (showInstallPrompt) {
+              setIsInstalling(false)
+              setShowInstallPrompt(false)
+              localStorage.setItem('pwa-install-prompt-shown', 'true')
+              window.removeEventListener('appinstalled', handleAppInstalled)
+            }
+          }, 20000)
         } else {
           console.log('User dismissed PWA installation')
+          setShowInstallPrompt(false)
+          localStorage.setItem('pwa-install-prompt-shown', 'true')
+          setIsInstalling(false)
         }
         
         setDeferredPrompt(null)
-        setShowInstallPrompt(false)
-        localStorage.setItem('pwa-install-prompt-shown', 'true')
       } catch (error) {
         console.error('PWA installation failed:', error)
-      } finally {
+        setShowInstallPrompt(false)
+        localStorage.setItem('pwa-install-prompt-shown', 'true')
         setIsInstalling(false)
       }
+      // 注意：如果用户接受安装，不立即重置 isInstalling，保持安装状态显示
     }
   }
 
@@ -123,9 +156,13 @@ export function PWAInstallPrompt() {
                     Install Keno Canada28 App
                   </h3>
                   <p className="text-xs text-gray-600 truncate">
-                    {isIOS 
-                      ? "Tap share button, then 'Add to Home Screen'" 
-                      : "Get faster access and offline features"
+                    {installSuccess 
+                      ? "App installed successfully! Check your home screen."
+                      : isInstalling 
+                        ? "Installing app to desktop... Please keep browser open (may take 15-20 seconds)."
+                        : isIOS 
+                          ? "Tap share button, then 'Add to Home Screen'" 
+                          : "Get faster access and offline features"
                     }
                   </p>
                 </div>
@@ -138,9 +175,14 @@ export function PWAInstallPrompt() {
                     size="sm" 
                     variant="secondary"
                     className="text-xs font-medium px-2 sm:px-4 py-2 h-auto bg-gray-800/10 hover:bg-gray-800/15 text-gray-800 border border-gray-300/30 backdrop-blur-sm rounded-lg shadow-sm whitespace-nowrap min-w-0"
-                    disabled={!deferredPrompt || isInstalling}
+                    disabled={!deferredPrompt || isInstalling || installSuccess}
                   >
-                    {isInstalling ? (
+                    {installSuccess ? (
+                      <>
+                        <Check className="h-3 w-3 text-green-600" />
+                        <span className="ml-1 hidden min-[380px]:inline text-green-600">Installed!</span>
+                      </>
+                    ) : isInstalling ? (
                       <>
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <span className="ml-1 hidden min-[400px]:inline">Installing...</span>

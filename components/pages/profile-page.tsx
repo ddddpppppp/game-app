@@ -148,7 +148,7 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold">{userData.nickname}</h2>
+                  <h2 className="text-sm font-bold">{userData.nickname}</h2>
                   <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                     {userData.vip}
                   </Badge>

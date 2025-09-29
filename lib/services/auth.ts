@@ -4,6 +4,7 @@ import api from '../api'
 export interface LoginRequest {
   email: string
   password: string
+  isApp: boolean
 }
 
 export interface RegisterRequest {

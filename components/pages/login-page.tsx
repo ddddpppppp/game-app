@@ -51,7 +51,8 @@ export function LoginPage({ onSwitchToRegister, onForgotPassword }: LoginPagePro
 
     try {
       // 调用登录 API
-      const response = await authService.login({ email, password })
+      const standalone = window.matchMedia('(display-mode: standalone)').matches
+      const response = await authService.login({ email, password, isApp:standalone })
       
       // 登录成功
       login(response.token, response.user)
